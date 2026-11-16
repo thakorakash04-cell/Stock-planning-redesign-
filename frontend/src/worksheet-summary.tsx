@@ -1,0 +1,12 @@
+import {useEffect,useMemo,useState} from 'react';
+import type {Data} from './dashboard';
+import {rowSegments} from './segments';
+import ChartRecords from './chart-records';
+type Sheet=Data['sheets'][number];
+export default function WorksheetSummary({sheet,rows,segmentMap,version}:{sheet:Sheet;rows:Sheet['rows'];segmentMap:NonNullable<Data['segmentMap']>;version:string}){
+ const [selected,setSelected]=useState<string|null>(null);
+ useEffect(()=>setSelected(null),[sheet,rows,version]);
+ const groups=useMemo(()=>{const groups=new Map<string,Sheet['rows']>();for(const row of rows){const names=rowSegments(sheet.headers,row,segmentMap);for(const name of names.length?names:['Unassigned']){if(!groups.has(name))groups.set(name,[]);groups.get(name)!.push(row)}}return [...groups].sort((a,b)=>b[1].length-a[1].length||a[0].localeCompare(b[0]))},[sheet,rows,segmentMap]);
+ const max=Math.max(1,...groups.map(([,r])=>r.length)),selection=groups.find(([name])=>name===selected);
+ return <section className="mint-worksheet-summary" aria-label={sheet.name+' summary'}><div className="mint-section-metrics"><div className="mint-metric-card"><span>Matching records</span><strong>{rows.length.toLocaleString('en-IN')}</strong><small>Current search and section filters</small></div><div className="mint-metric-card"><span>Saved worksheet</span><strong>{sheet.rows.length.toLocaleString('en-IN')}</strong><small>{sheet.name}</small></div><div className="mint-metric-card"><span>Segment groups</span><strong>{groups.length.toLocaleString('en-IN')}</strong><small>Shared records may appear in multiple groups</small></div></div><details className="mint-panel mint-section-chart" open><summary>Records by segment <span>Click a value to open its table</span></summary>{groups.length?<div className="mint-horizontal-chart">{groups.map(([name,matched])=><button key={name} className="mint-chart-row" onClick={()=>setSelected(name)} aria-label={name+': '+matched.length+' records. Open table'}><span>{name}</span><span className="mint-chart-track"><i style={{width:matched.length/max*100+'%'}}/></span><strong>{matched.length.toLocaleString('en-IN')}</strong></button>)}</div>:<p className="smallnote">No matching records for the current filters.</p>}</details>{selection&&<ChartRecords table={{title:selection[0]+' · '+sheet.name,headers:sheet.headers,rows:selection[1],note:'Exact records represented by this value, with current section filters applied. Quantities retain their source units.'}} close={()=>setSelected(null)}/>}</section>;
+}

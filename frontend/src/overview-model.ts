@@ -9,6 +9,7 @@ export function salesActivity(snapshot:{available:boolean;headers:string[];rows:
  for(const date of dates.values){if(date)groups.set(date,(groups.get(date)||0)+1);else undated++;}
  return {available:true,months:[...groups].sort(([a],[b])=>a.localeCompare(b)).slice(-12).map(([period,lines])=>({period,lines})),undated,total:snapshot.rows.length};
 }
+export const stockStatus=(value:Cell)=>typeof value==='number'&&Number.isFinite(value)?value>0?'stocked':'empty':'unknown';
 export function overviewModel(data:Data|null,segment='all',query='',allowTools=false){
  const allowed=(tab:number)=>!!data&&(![7,8].includes(tab)||allowTools)&&(!data.accessibleTabs||data.accessibleTabs.includes(tab));
  const stock=allowed(0)?data?.sheets[0]:undefined;
@@ -28,5 +29,5 @@ export function overviewModel(data:Data|null,segment='all',query='',allowTools=f
  const purchaseLines=purchasing?.rows.filter(r=>typeof r[purchaseIndex>=0?purchaseIndex:7]==='number'&&Number(r[purchaseIndex>=0?purchaseIndex:7])>0).length??null;
  const production=allowed(3)?data?.production:undefined;
  const productionReady=!!production&&!production.error;
- return {allowed,stockAvailable:!!stock,stockLabel:stock?.headers[quantityIndex]||'Saved stock',rows,segments,groups:[...groups.values()].sort((a,b)=>b.total-a.total||a.name.localeCompare(b.name)),stocked,empty,unknown,coverage:stocked+empty?stocked/(stocked+empty)*100:null,purchaseLines,productionAvailable:productionReady,ongoing:productionReady?production.ongoing.length:null,qc:productionReady?production.qc.rows.length:null,upcoming:productionReady?production.upcoming.length:null,stockCount:stock?allRows.length:null,shared:rows.some(r=>members(r).length>1)};
+ return {allowed,quantityIndex,stockAvailable:!!stock,stockLabel:stock?.headers[quantityIndex]||'Saved stock',rows,segments,groups:[...groups.values()].sort((a,b)=>b.total-a.total||a.name.localeCompare(b.name)),stocked,empty,unknown,coverage:stocked+empty?stocked/(stocked+empty)*100:null,purchaseLines,productionAvailable:productionReady,ongoing:productionReady?production.ongoing.length:null,qc:productionReady?production.qc.rows.length:null,upcoming:productionReady?production.upcoming.length:null,stockCount:stock?allRows.length:null,shared:rows.some(r=>members(r).length>1)};
 }

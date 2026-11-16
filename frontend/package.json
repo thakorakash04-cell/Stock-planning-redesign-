@@ -10,7 +10,8 @@
     "test:startup": "node --experimental-vm-modules tests/self-contained-startup.cjs && node --experimental-vm-modules tests/home-startup.cjs",
     "test:pending-demand": "node tests/pending-demand.cjs && node tests/workspace-navigation.cjs && node tests/demand-plan.cjs",
     "test:uploads": "node tests/upload-center.cjs",
-    "test:batch-cache": "node tests/batch-cache.cjs && node tests/cached-view.cjs && node tests/startup-issue-slip.cjs"
+    "test:batch-cache": "node tests/batch-cache.cjs && node tests/cached-view.cjs && node tests/startup-issue-slip.cjs",
+    "test:mint": "node --experimental-vm-modules tests/mint-workspace.cjs"
   },
   "dependencies": {
     "lucide-react": "1.31.0",

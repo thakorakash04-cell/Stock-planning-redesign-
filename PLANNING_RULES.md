@@ -551,3 +551,9 @@ Email Management → Automatic reports includes rule 9, New Production Batch Req
 ### Separate redesign Overview
 The Overview summarizes already authorized saved views and does not recalculate planning quantities. Positive/zero-or-negative stock are counts of finite numeric lines; blank and nonnumeric values are excluded from the coverage denominator. Segment charts count shared materials in each linked segment. Purchasing counts saved positive need-to-order lines. Sales shows saved transaction counts by month, not summed currencies or units. Tools shortcuts require existing section and tools permissions. No additional polling or database reads are introduced.
 
+
+
+### Mint section layouts and graph records
+All workspace tabs share the Overview mint headings, rounded panels, controls and table treatment. Saved worksheet tabs also show current-filter record counts and segment-count charts. These are record counts, not summed stock/cost quantities. Shared materials appear in each linked segment. Production subviews retain their existing shared-plan controls.
+
+Graph values are visible and interactive. Stock bars open the exact segment/status rows with the active Overview search and segment filters; the coverage percentage opens its numeric-stock denominator records. Sales points/month values open the saved transactions for that source and month. Worksheet graph values open matching filtered rows. Insights value labels retain the original evidence index after date sorting and windowing and use the existing source-record drill-through. Chart tables retain existing column/filter/grouping and download permissions. Enter/Space activate graph values and Escape closes the table. Overview/worksheet/sales chart tables use already permitted snapshots without additional source queries.
