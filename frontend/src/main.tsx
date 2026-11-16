@@ -12,6 +12,7 @@ import './insights-dashboard.css';
 import './checkbox-filter.css';
 import './table-controls.css';
 import './mint-dashboard.css';
+import './mint-sections.css';
 import {seedPreload,prepareInsights} from './preload-cache';
 import {loadInsightStatus} from './insight-display-cache';
 import {preloadColumnValues,hasPreparedColumns,preparedColumnSnapshot,restorePreparedColumns,preparedColumnKey} from './table-columns';

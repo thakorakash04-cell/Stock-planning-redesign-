@@ -35,6 +35,12 @@ Existing custom worksheet rules and their legacy schedule remain available while
 
 ## Separate UI redesign
 
+### Mint section layouts and graph records
+All workspace tabs share the Overview mint headings, rounded panels, controls and table treatment. Saved worksheet tabs also show current-filter record counts and segment-count charts. These are record counts, not summed stock/cost quantities. Shared materials appear in each linked segment. Production subviews retain their existing shared-plan controls.
+
+Graph values are visible and interactive. Stock bars open the exact segment/status rows with the active Overview search and segment filters; the coverage percentage opens its numeric-stock denominator records. Sales points/month values open the saved transactions for that source and month. Worksheet graph values open matching filtered rows. Insights value labels retain the original evidence index after date sorting and windowing and use the existing source-record drill-through. Chart tables retain existing column/filter/grouping and download permissions. Enter/Space activate graph values and Escape closes the table. Overview/worksheet/sales chart tables use already permitted snapshots without additional source queries.
+
+
 This private redesign preserves the existing Streamlit backend, calculations and account controls. The default Overview adds the mint-and-white dashboard, saved stock line counts, segment/search filters, stock coverage, saved sales activity and links to existing workspaces. Missing/non-finite stock values are excluded from coverage; stock quantities across different units are never added. Shared materials appear in each linked segment. Overview data uses the existing authorized payload and saved sales snapshots without additional polling. Insights shortcuts require both section access and tools permission.
 
 The original production app and its database remain separate. To connect the redesign later, configure its Streamlit secrets explicitly; no credentials or uploaded workbooks belong in this repository. Build the Streamlit component with `npm run build` from `frontend`, and run `npm run check`, `npm test`, `npm run test:startup` and `node tests/overview.cjs` before deployment.
