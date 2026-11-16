@@ -1,0 +1,22 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),ts=require('typescript'),{JSDOM}=require('jsdom');
+for(const ext of ['.ts','.tsx'])require.extensions[ext]=(m,n)=>m._compile(ts.transpileModule(fs.readFileSync(n,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX,esModuleInterop:true}}).outputText,n);
+const dom=new JSDOM('<div id="root"></div>',{url:'https://workspace.test'});Object.assign(global,{window:dom.window,document:dom.window.document,HTMLElement:dom.window.HTMLElement,CustomEvent:dom.window.CustomEvent,IS_REACT_ACT_ENVIRONMENT:true});window.HTMLElement.prototype.scrollIntoView=function(){};
+const evidence={table:'Stock',matched_records:2,result_rows:1,shown_rows:1,records:[{'count(*)':2}]},cards=[{id:'k1',title:'Count A',field:'count(*)',value:2,basis:'records',evidence},{id:'k2',title:'Count B',field:'count(*)',value:2,basis:'records',evidence}];
+const report={report_id:'lazy_test',cache_generation:'gen',version:'v1',generated_at:'2026-11-03',answer:'Saved report',sections:[{view:0,title:'Stock',records:2,limitation:'',kpis:cards,charts:[]}]},calls=[],pending=[];
+require.cache[require.resolve('../src/bridge.ts')]={loaded:true,exports:{isAdmin:()=>false,rpc:(action,payload)=>{calls.push({action,payload});if(action==='ai_status')return Promise.resolve({configured:true,version:'v1',tables:1,saved_report:report});return new Promise((resolve,reject)=>pending.push({action,payload,resolve,reject}));}}};
+require.cache[require.resolve('../src/record-grid.tsx')]={loaded:true,exports:{__esModule:true,default:()=>null}};
+const React=require('react'),{act}=React,{createRoot}=require('react-dom/client'),Insights=require('../src/insights.tsx').default,root=createRoot(document.getElementById('root')),tick=()=>new Promise(r=>setImmediate(r));
+async function click(label){await act(async()=>{const b=document.querySelector('[aria-label="'+label+'"]');assert(b,label);b.click();await tick()})}
+async function settle(request,error){await act(async()=>{if(error)request.reject(Error(error));else request.resolve({report_id:'lazy_test',view:0,item_id:request.payload.kpi_id,item_kind:'kpi',saved:request.action==='save_insight_item',deleted:request.action==='delete_insight_chart'});await tick()})}
+(async()=>{
+ await act(async()=>{root.render(React.createElement(Insights));await tick()});
+ await click('Delete KPI Count A');assert(!document.querySelector('[aria-label="Delete KPI Count A"]'),'Delete removes card before server reply');assert.equal(pending.length,1);assert.equal(pending[0].payload.cache_generation,'gen');assert(!('query' in pending[0].payload));
+ await settle(pending.shift(),'Could not commit');assert(document.querySelector('[aria-label="Delete KPI Count A"]'),'Failed deletion restores card');assert.equal(document.querySelector('.bi-kpi span').textContent,'Count A','Rollback preserves order');
+ await click('Save KPI Count A');assert.equal(document.querySelector('[aria-label="Save KPI Count A"]').textContent,'Saving…');assert.equal(document.querySelectorAll('.bi-kpi-tile').length,2);
+ const first=pending.shift();await settle(first,'Request timed out. Please retry.');assert.equal(pending.length,1,'Lost ack retries same item once');assert.deepEqual(pending[0].payload,first.payload);await settle(pending.shift());assert.equal(document.querySelector('[aria-label="Save KPI Count A"]').textContent,'Saved KPI');
+ await click('Delete KPI Count A');assert(!document.querySelector('[aria-label="Delete KPI Count A"]'));await settle(pending.shift());assert.equal(document.querySelectorAll('.bi-kpi-tile').length,1);assert.equal(document.querySelectorAll('.bi-kpi-tile').length,1);
+ await click('Save KPI Count B');await settle(pending.shift(),'Connection closed');await settle(pending.shift(),'Connection closed');assert.equal(document.querySelector('[aria-label="Save KPI Count B"]').textContent,'Save KPI','Unconfirmed save rolls back');assert(document.querySelector('[role=alert]').textContent.includes('Could not confirm'));
+ assert.equal(calls.filter(c=>c.action==='generate_insights').length,0);assert.equal(calls.filter(c=>c.action==='ai_status').length,1,'Edits do not reload report');
+ await act(async()=>root.unmount());dom.window.close();console.log('PASS: immediate KPI delete/save, commit rollback, stable order, bounded same-item lost-ack retry and zero report reload/AI calls');
+})().catch(e=>{console.error(e);process.exitCode=1});
+

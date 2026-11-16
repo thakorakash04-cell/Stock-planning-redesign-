@@ -1,0 +1,26 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),ts=require('typescript'),{JSDOM}=require('jsdom');
+for(const ext of ['.ts','.tsx'])require.extensions[ext]=(m,n)=>m._compile(ts.transpileModule(fs.readFileSync(n,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX,esModuleInterop:true}}).outputText,n);
+const dom=new JSDOM('<div id="root"></div>',{url:'https://workspace.test'});Object.assign(global,{window:dom.window,document:dom.window.document,HTMLElement:dom.window.HTMLElement,CustomEvent:dom.window.CustomEvent,localStorage:dom.window.localStorage,IS_REACT_ACT_ENVIRONMENT:true});window.HTMLElement.prototype.scrollIntoView=function(){};
+const packets=[],chart={id:'g1',title:'Saved quantities',type:'bar',label:'Material',value:'Qty',evidence:{table:'Stock',source_id:'fresh-source',matched_records:1,result_rows:1,shown_rows:1,records:[{Material:'A',Qty:3}]}};
+let active=null;let saved={version:'v1',report_id:'restored',generated_at:'2026-10-27',cached:true,answer:'Saved business findings',sections:[{view:0,title:'Stock overview',records:1,limitation:'',charts:[chart]},{view:1,title:'Second planning view',records:1,limitation:'',charts:[{...chart,id:'g2',title:'Second section graph'}]}]};
+require.cache[require.resolve('../src/bridge.ts')]={loaded:true,exports:{isAdmin:()=>false,rpc:async(action,payload)=>{packets.push({action,payload});if(action==='ai_status')return{version:'v1',tables:1,configured:true,saved_report:saved,active_analysis:active};if(action==='delete_insight_chart'){saved={...saved,report_id:'after-delete',sections:[{...saved.sections[0],charts:[]}]};return{report:saved}}return{}}}};
+require.cache[require.resolve('../src/record-grid.tsx')]={loaded:true,exports:{__esModule:true,default:()=>null}};
+const React=require('react'),{act}=React,{createRoot}=require('react-dom/client'),Insights=require('../src/insights.tsx').default,root=createRoot(document.getElementById('root')),tick=()=>new Promise(r=>setImmediate(r));
+(async()=>{
+ await act(async()=>{root.render(React.createElement(Insights));await tick()});
+ assert.equal(document.querySelectorAll('.insights-section').length,1,'Restore initially mounts one planning view');
+ assert.equal(document.querySelector('.insight-view-tabs [role=tab][aria-selected=true]').textContent,'Stock overview1');
+ await act(async()=>{[...document.querySelectorAll('[role=tab]')].find(e=>e.textContent==='All views').click();await tick()});
+ assert.equal(document.querySelectorAll('.insights-section').length,2,'All cached sections remain accessible');
+ await act(async()=>{[...document.querySelectorAll('[role=tab]')].find(e=>e.textContent.startsWith('Stock overview')).click();await tick()});
+ assert.ok(document.querySelector('.insight-summary').textContent.includes('Saved business findings'));
+ assert.equal(packets.length,1,'Restore uses one authenticated status request without generation');assert.equal(packets[0].payload.load_saved_insights,true);
+ await act(async()=>{document.querySelector('[aria-label="Delete graph Saved quantities"]').click();await tick()});
+ assert.equal(packets.at(-1).payload.chart_id,'g1');assert.equal(document.querySelectorAll('.insight-chart').length,0);
+ await act(async()=>{root.render(null);await tick()});await act(async()=>{root.render(React.createElement(Insights));await tick()});
+ assert.equal(document.querySelectorAll('.insight-chart').length,0);assert.equal(packets.filter(p=>p.action==='generate_insights').length,0);
+ active={pending:true,request_id:'request-1',job_id:'interrupted',step:2,progress:{label:'Writing findings',percent:60},report:{...saved,report_id:'partial',sections:[{...saved.sections[0],charts:[chart]}]}};
+ await act(async()=>{root.render(null);await tick()});await act(async()=>{root.render(React.createElement(Insights));await tick()});
+ assert(document.querySelector('.insight-chart'),'Delivered partial sections restore on a fresh page');assert.equal(document.querySelector('.insights-controls button').textContent.trim(),'Resume analysis');assert(document.querySelector('.insights-controls button').disabled,'A new login must renew provider consent before resuming');assert.equal(packets.filter(p=>p.action==='generate_insights').length,0);
+ await act(async()=>root.unmount());console.log('Passed: saved insights hydrate without AI, deletion persists and remount restores server layout.');
+})().catch(e=>{console.error(e);process.exitCode=1});

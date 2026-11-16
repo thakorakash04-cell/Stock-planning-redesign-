@@ -1,0 +1,10 @@
+const assert=require('node:assert/strict'),vm=require('vm'),{execFileSync}=require('node:child_process');
+const script=execFileSync('python',['-c',"import ast,pathlib; t=ast.parse(pathlib.Path('stock_accounts/theme.py').read_text()); print(next(ast.literal_eval(n.value) for n in t.body if isinstance(n,ast.Assign) and any(isinstance(x,ast.Name) and x.id=='BROWSER_JS' for x in n.targets)))"],{encoding:'utf8'});
+const saved=new Map([['stock-planning:theme','dark'],['stock-planning:ui-style','glassmorphism']]),messages=[];let writes=0;
+const context={window:{},localStorage:{getItem:k=>saved.get(k),setItem:(k,v)=>{writes++;saved.set(k,v)}},document:{cookie:''},location:{protocol:'https:'}};
+const run=vm.runInNewContext('('+script.replace('export default ','')+')',context);
+const render=action=>run({data:{action},setStateValue:(key,value)=>messages.push([key,value])});
+render(null);assert.equal(writes,0,'Opening native login/password must not overwrite React preferences');assert.equal(messages.at(-1)[1].style,'glassmorphism');assert.equal(messages.at(-1)[1].theme,'dark');
+saved.set('stock-planning:ui-style','spatial');render(null);assert.equal(messages.at(-1)[1].style,'spatial','Preferences changed in the workspace must hydrate native screens');
+render({nonce:'one',theme:'light',style:'liquid-glass'});assert.equal(saved.get('stock-planning:ui-style'),'liquid-glass');assert.equal(saved.get('stock-planning:theme'),'light');const count=writes;render({nonce:'one',theme:'light',style:'liquid-glass'});assert.equal(writes,count,'Acknowledged actions are not replayed');
+console.log('PASS: native appearance hydrates current browser values without overwriting them and applies explicit changes once.');

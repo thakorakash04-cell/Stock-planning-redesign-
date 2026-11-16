@@ -1,0 +1,40 @@
+const assert=require('node:assert/strict'),fs=require('fs'),ts=require('typescript'),{JSDOM}=require('jsdom');
+for(const ext of ['.ts','.tsx'])require.extensions[ext]=(m,n)=>m._compile(ts.transpileModule(fs.readFileSync(n,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX,esModuleInterop:true}}).outputText,n);require.extensions['.css']=()=>{};
+const dom=new JSDOM('<div id="root"></div>',{url:'https://planning.test'});Object.assign(global,{window:dom.window,document:dom.window.document,HTMLElement:dom.window.HTMLElement,CustomEvent:dom.window.CustomEvent,IS_REACT_ACT_ENVIRONMENT:true});
+const frames=[];window.requestAnimationFrame=fn=>(frames.push(fn),frames.length);
+const React=require('react'),{act}=React;let callback,active,finance,models,insights,column,issue,mounts=0;const calls=[];
+const headers=['Material','Qty'],rows=[['A',2]],definitions=[{name:'Amount',plan:{sources:[],columns:[]}}];
+require.cache[require.resolve('../src/bridge.ts')]={loaded:true,exports:{startBridge:fn=>callback=fn,can:()=>true,canAccessTab:()=>true,tableColumnSnapshot:()=>({user:active.user,version:active.version,accessScope:active.accessScope}),readViewPreference:key=>active.preferences?.[key],saveViewPreference:()=>{},preparedModelTables:()=>[],ensureModelTables:()=>{calls.push('models');return new Promise(resolve=>models=resolve)},rpc:(action,input)=>{calls.push(action);if(action==='issue_slip_dataset')return new Promise(resolve=>issue=resolve);if(action==='heartbeat')return Promise.resolve({sourceVersions:{primary:'sales1'}});if(action==='workspace_preload')return new Promise((resolve,reject)=>finance={resolve,reject});if(action==='ai_status')return new Promise(resolve=>insights=resolve);if(action==='table_columns_resolve')return new Promise(resolve=>column={resolve,input});return Promise.resolve({})}}};
+const {useColumns}=require('../src/table-columns.tsx');
+require.cache[require.resolve('../src/dashboard.tsx')]={loaded:true,exports:{__esModule:true,default:()=>{const {table}=useColumns(headers,rows,'main:Stock');React.useEffect(()=>{mounts++},[]);return React.createElement('div',{'aria-label':'Ready dashboard'},JSON.stringify(table.rows))}}};
+require.cache[require.resolve('../src/insights.tsx')]={loaded:true,exports:{__esModule:true,default:()=>null}};
+const args={user:'alice',role:'viewer',permissions:{use_tools:true},accessScope:'alice-scope',version:'v1',tablesDeferred:true,data:{filename:'Master.xlsx',accessibleTabs:[0,3,7,8,12],sheets:[{name:'Stock',headers,rows}]},preferences:{'columns:main:Stock':{definitions}},preload:{deferred:true}};
+const tick=()=>new Promise(r=>setImmediate(r)),percent=()=>document.querySelector('progress')?.value;
+const send=async value=>act(async()=>{active=value;callback(value);await tick();await tick()});
+const drain=async()=>act(async()=>{while(frames.length){frames.shift()();await tick()}});
+(async()=>{
+ await act(async()=>{require('../src/main.tsx');await tick()});assert.equal(percent(),0);
+ await send(args);assert.equal(percent(),20);assert.equal(mounts,0);
+ await send(args);assert.equal(calls.filter(c=>c==='workspace_preload').length,1);
+ await act(async()=>{finance.resolve({version:'v1',accessScope:'alice-scope',preload:{id:'finance1',sales:{},pnl:null,versions:{primary:'sales1'}}});await tick()});assert.equal(percent(),40);
+ await act(async()=>{models();await tick()});assert.equal(percent(),65);assert.equal(calls.filter(c=>c==='ai_status').length,0,'Insights must not delay table startup');assert.deepEqual(column.input.rows,rows);
+ await act(async()=>{column.resolve({columns:[{name:'Amount',values:[20]}],cached:true});await tick();await tick()});assert.equal(percent(),96);assert.equal(mounts,0,'Workspace waits for Issue Slip preparation');await act(async()=>{issue({stamp:'issue-v1',result:{issueHeaders:['Plan Reference','Required Quantity'],issueRows:[['p',0.0375]],checkedAt:1}});await tick();await tick()});assert.equal(percent(),100);assert.equal(mounts,0);
+ await drain();assert.equal(mounts,1);const issueRequests=calls.filter(c=>c==='issue_slip_dataset').length;await require('../src/issue-slip-cache.ts').loadIssueSlip();assert.equal(calls.filter(c=>c==='issue_slip_dataset').length,issueRequests,'Opening prepared Issue Slip does not request data again');assert(document.querySelector('[aria-label="Ready dashboard"]').textContent.includes('20'));
+ assert.equal(calls.filter(c=>c==='table_columns_resolve').length,1,'First table mount uses the preloaded values with no second request');
+ assert.equal(calls.filter(c=>c==='ai_status').length,1,'Saved Insights start only after home is mounted');
+ const shared=require('../src/preload-cache.ts').prepareInsights(()=>{throw Error('Duplicate Insights request')});
+ await act(async()=>{insights({version:'v1',saved_report:{answer:'Saved insight'}});await shared;await tick()});
+ assert.equal(require('../src/preload-cache.ts').insightsBootstrap().saved_report.answer,'Saved insight');
+ const bob={...args,user:'bob',permissions:{use_tools:false},accessScope:'bob-scope',tablesDeferred:false,data:{...args.data,accessibleTabs:[0]},preferences:{}};
+ await send(bob);assert.equal(percent(),20);await act(async()=>{finance.reject(new Error('Database unavailable'));await tick()});assert(document.querySelector('[role="alert"]'));assert.equal(mounts,1);
+ const before=calls.filter(c=>c==='workspace_preload').length;await send(bob);assert.equal(calls.filter(c=>c==='workspace_preload').length,before,'Host replies do not silently retry failed startup');
+ await act(async()=>{[...document.querySelectorAll('button')].find(b=>b.textContent==='Retry loading').click();await tick()});
+ await act(async()=>{finance.resolve({version:'v1',accessScope:'bob-scope',preload:{id:'finance2',sales:{},pnl:null}});await tick();await tick()});await drain();assert.equal(mounts,2);
+ // A prior account's unfinished preload cannot seed the new account.
+ await send({...args,user:'old',accessScope:'old-scope'});const old=finance;
+ await send({...bob,user:'new',accessScope:'new-scope',preload:{deferred:false}});await drain();assert.equal(mounts,3);
+ await act(async()=>{old.resolve({version:'v1',accessScope:'old-scope',preload:{id:'old',sales:{primary:{rows:[['private']]}},pnl:null}});await tick()});
+ assert.equal(require('../src/preload-cache.ts').salesSnapshot('primary'),undefined);assert.equal(mounts,3);
+ dom.window.close();console.log('PASS: full staged readiness, preloaded column values/Insights, no duplicate requests, retry and stale-account isolation.');
+})().catch(e=>{console.error(e);process.exitCode=1});
+

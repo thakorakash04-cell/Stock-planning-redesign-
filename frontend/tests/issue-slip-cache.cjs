@@ -1,0 +1,15 @@
+const assert=require('node:assert/strict'),fs=require('fs'),ts=require('typescript'),{JSDOM}=require('jsdom');
+for(const ext of ['.ts','.tsx'])require.extensions[ext]=(m,n)=>m._compile(ts.transpileModule(fs.readFileSync(n,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX,esModuleInterop:true}}).outputText,n);
+const dom=new JSDOM('',{url:'https://planning.test'});Object.assign(global,{window:dom.window,document:dom.window.document});
+const storage=new Map();let blocked=false,who='a',version='v1',denied=false,wait=null,calls=[];
+global.indexedDB={open(){if(blocked)throw Error('Blocked');const r={result:{objectStoreNames:{contains:()=>true},close(){},transaction(){const tx={objectStore(){return {get(key){const req={};queueMicrotask(()=>{req.result=storage.get(key);req.onsuccess?.()});return req},put(value,key){storage.set(key,value);queueMicrotask(()=>tx.oncomplete?.())}}}};return tx}}};queueMicrotask(()=>r.onsuccess());return r}};
+const result={issueHeaders:['Plan','Qty'],issueRows:[['p',0.0375]],checkedAt:1};
+require.cache[require.resolve('../src/bridge.ts')]={loaded:true,exports:{tableColumnSnapshot:()=>({user:who,accessScope:who+'-rights'}),rpc:async(action,input={})=>{calls.push([action,input]);if(denied)throw Error('Access denied');if(wait)return new Promise(resolve=>wait=resolve);return input.known_stamp===version?{stamp:version,not_modified:true}:{stamp:version,result}}}};
+const fresh=()=>{delete require.cache[require.resolve('../src/issue-slip-cache.ts')];return require('../src/issue-slip-cache.ts')};
+(async()=>{let cache=fresh();let first=await cache.loadIssueSlip();assert(!first.cached);assert.equal(storage.size,1);cache=fresh();const restored=await cache.loadIssueSlip();assert(restored.cached);assert.equal(calls.at(-1)[1].known_stamp,'v1');assert.deepEqual(restored.result,result,'Fresh login/runtime uses persisted rows after metadata validation');
+ const before=calls.length;await cache.loadIssueSlip();assert.equal(calls.length,before,'Opening the prepared Issue Slip makes no server request');
+ version='v2';window.dispatchEvent(new window.Event('stock-data-updated'));assert(!(await cache.loadIssueSlip()).cached,'Changed source returns new table');denied=true;await assert.rejects(cache.loadIssueSlip(true),/denied/);denied=false;
+ who='b';await cache.loadIssueSlip();assert.equal(calls.at(-1)[1].known_stamp,undefined,'Another account cannot send the old cache stamp');
+ const forced=await cache.loadIssueSlip(true);assert(forced.cached);assert.equal(calls.at(-1)[1].known_stamp,'v2');
+ blocked=true;cache=fresh();assert(!(await cache.loadIssueSlip()).cached,'Blocked storage falls back to server');blocked=false;
+ wait=true;const pending=cache.loadIssueSlip(true);await new Promise(r=>setImmediate(r));who='c';wait({stamp:'v2',result});await assert.rejects(pending,/access changed/);dom.window.close();console.log('PASS: persistent validated restore across runtimes, source invalidation, denied access, account isolation, explicit refresh, blocked storage and late-owner rejection.');})().catch(e=>{console.error(e);process.exitCode=1});

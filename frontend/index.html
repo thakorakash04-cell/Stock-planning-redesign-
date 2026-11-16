@@ -1,0 +1,14 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>Stock & Planning</title><script>
+(function(){
+ var queued=null,handed=false,timer;
+ function send(type,extra){window.parent.postMessage(Object.assign({isStreamlitMessage:true,type:type},extra),'*')}
+ function ready(){send('streamlit:componentReady',{apiVersion:1});send('streamlit:setFrameHeight',{height:Math.max(240,window.innerHeight||600)})}
+ function receive(event){if(event.source!==window.parent||!event.data||event.data.type!=='streamlit:render')return;queued=event;clearInterval(timer)}
+ function failed(){if(handed)return;var root=document.getElementById('root');if(!root)return;root.textContent='The workspace interface could not start. Your saved data and login are retained. ';var button=document.createElement('button');button.textContent='Retry opening workspace';button.onclick=function(){window.location.reload()};root.appendChild(button)}
+ window.addEventListener('message',receive);window.addEventListener('error',failed);
+ window.__portalBoot={handoff:function(){if(handed)return;handed=true;clearInterval(timer);window.removeEventListener('message',receive);window.removeEventListener('error',failed);if(queued){var event=queued;queued=null;window.dispatchEvent(new MessageEvent('message',{data:event.data,origin:event.origin,source:event.source}))}}};
+ timer=setInterval(ready,1000);ready();
+})();
+</script></head><body><div id="root"><div role="status" style="padding:64px;font:16px system-ui;color:#285e4c;background:#f4f6f8;min-height:100vh">Opening workspace…</div></div><script type="module" src="/src/main.tsx"></script></body></html>
+
+
