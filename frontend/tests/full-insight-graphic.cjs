@@ -1,0 +1,23 @@
+const assert=require('node:assert/strict'),fs=require('fs'),ts=require('typescript'),{JSDOM}=require('jsdom');
+for(const ext of ['.ts','.tsx'])require.extensions[ext]=(m,n)=>m._compile(ts.transpileModule(fs.readFileSync(n,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX,esModuleInterop:true}}).outputText,n);
+const dom=new JSDOM('<div id="root"></div>',{url:'https://planning.test'});Object.assign(global,{window:dom.window,document:dom.window.document,HTMLElement:dom.window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true});
+const React=require('react'),{act}=React,{createRoot}=require('react-dom/client'),capture={};const passthrough=({children})=>React.createElement('div',null,children);
+let draws=0;const mocks={};for(const key of ['ResponsiveContainer','XAxis','YAxis','CartesianGrid','Tooltip','Cell','Line','Area','Pie','Scatter'])mocks[key]=passthrough;
+for(const key of ['BarChart','LineChart','AreaChart','ScatterChart','PieChart'])mocks[key]=props=>{capture[key]=props;return React.createElement('div',null,props.children)};mocks.Bar=props=>{draws++;capture.Bar=props;return null};
+require.cache[require.resolve('recharts')]={loaded:true,exports:mocks};
+const{default:Graphic,comparisonPoints,isDatedComparisonLabel}=require('../src/insight-graphic.tsx'),root=createRoot(document.getElementById('root')),marks=[];
+const chart={title:'All materials',type:'bar',label:'Material',value:'Qty',evidence:{records:Array.from({length:300},(_,i)=>({Material:'M'+i,Qty:i}))}};
+const props=element=>element[Object.keys(element).find(key=>key.startsWith('__reactProps$'))];
+(async()=>{
+ await act(async()=>root.render(React.createElement(Graphic,{chart,onMark:index=>marks.push(index)})));
+ assert.equal(capture.BarChart.data.length,300,'Every available material is represented');const scroll=document.querySelector('[aria-label="Scrollable graph: All materials"]');assert(scroll);assert.equal(scroll.tabIndex,0);assert(parseInt(scroll.firstElementChild.style.height)>=8400,'Long bar chart gets real vertical scroll space');capture.Bar.onClick({payload:capture.BarChart.data[299]});assert.equal(marks.at(-1),299);
+ const before=draws,newMarks=[];await act(async()=>root.render(React.createElement(Graphic,{chart,onMark:index=>newMarks.push(index)})));assert.equal(draws,before,'unchanged graph data must not redraw for unrelated parent edits');capture.Bar.onClick({payload:capture.BarChart.data[10]});assert.equal(newMarks.at(-1),10,'memoization must retain the latest event callback');
+ await act(async()=>props(document.querySelector('[aria-label="Zoom All materials"]')).onChange({target:{value:'200'}}));assert(parseInt(scroll.firstElementChild.style.height)>=16800);assert(document.body.textContent.includes('200%'));
+ const large={...chart,evidence:{records:Array.from({length:701},(_,i)=>({Material:'M'+i,Qty:i}))}};await act(async()=>root.render(React.createElement(Graphic,{chart:large,onMark:index=>marks.push(index)})));assert.equal(capture.BarChart.data.length,300);
+ await act(async()=>[...document.querySelectorAll('button')].find(b=>b.textContent==='Next values').click());assert.equal(capture.BarChart.data[0].index,300);capture.Bar.onClick({payload:capture.BarChart.data[250]});assert.equal(marks.at(-1),550,'Windowed mark keeps its complete-evidence index');
+ const column={...chart,type:'column'};await act(async()=>root.render(React.createElement(Graphic,{chart:column,onMark:index=>marks.push(index)})));assert(parseInt(document.querySelector('.graph-scroll').firstElementChild.style.width)>=10800,'Columns use horizontal scroll space');
+ assert(isDatedComparisonLabel('Jun 2026'));assert(!isDatedComparisonLabel('Unknown month'));
+ const monthly={...chart,type:'line',evidence:{records:[{Material:'Oct 2026',Qty:4},{Material:'Jul 2026',Qty:3},{Material:'Jun 2025',Qty:1},{Material:'Jun 2026',Qty:2}]}};assert.deepEqual(comparisonPoints(monthly).map(p=>p.index),[2,3,1,0],'human-readable month labels sort by calendar year/month, not alphabetically');
+ const trend={...chart,type:'line',evidence:{records:[{Material:'2026-02-01',Qty:2},{Material:'2026-01-01',Qty:1}]}};assert.deepEqual(comparisonPoints(trend).map(p=>p.index),[1,0]);await act(async()=>root.render(React.createElement(Graphic,{chart:trend,onMark:index=>marks.push(index)})));capture.LineChart.onClick({activeTooltipIndex:'0'});assert.equal(marks.at(-1),1,'Chronological view preserves original evidence row identity');
+ await act(async()=>root.unmount());dom.window.close();console.log('PASS: all 300 marks, vertical/horizontal scroll dimensions, zoom, 701-row navigation and exact mark identity after windowing/date sorting.');
+})().catch(e=>{console.error(e);process.exitCode=1});

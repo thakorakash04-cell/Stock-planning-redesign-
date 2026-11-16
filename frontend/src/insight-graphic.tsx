@@ -1,0 +1,41 @@
+import {memo,useCallback,useEffect,useMemo,useRef,useState} from 'react';
+import {ResponsiveContainer,BarChart,Bar,XAxis,YAxis,CartesianGrid,Tooltip,LineChart,Line,AreaChart,Area,PieChart,Pie,Cell,ScatterChart,Scatter} from 'recharts';
+type GraphicChart={title:string;type?:string;label:string;value:string;x?:string;evidence:{records:Record<string,unknown>[]}};
+const colors=['#0c9c74','#65a9ed','#f6b654','#967ce3','#ef8591','#66c6b4','#859eae','#deaf76','#6d83cf','#c3b1df'];
+const number=(value:unknown)=>typeof value==='number'?value.toLocaleString('en-IN',{maximumFractionDigits:4}):String(value??'—');
+const calendarMonths=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+export function calendarLabelKey(label:string){const match=/^([A-Za-z]{3}) (\d{4})$/.exec(label);return match&&calendarMonths.includes(match[1])?Number(match[2])*12+calendarMonths.indexOf(match[1]):null;}
+export function isDatedComparisonLabel(value:unknown){const label=String(value??'');return /^\d{4}-\d{2}/.test(label)||calendarLabelKey(label)!==null;}
+export function comparisonPoints(chart:GraphicChart){
+ const points=chart.evidence.records.map((row,index)=>({label:String(row[chart.label]??'Unspecified'),value:typeof row[chart.value]==='number'?row[chart.value] as number:null,x:chart.x&&typeof row[chart.x]==='number'?row[chart.x] as number:null,index}));
+ if(chart.type==='line'||chart.type==='area')points.sort((a,b)=>{const x=calendarLabelKey(a.label),y=calendarLabelKey(b.label);return x!==null&&y!==null?x-y:a.label.localeCompare(b.label)});return points;
+}
+function GraphicContent({chart,onMark,fullScreen=false}:{chart:GraphicChart;onMark:(index:number)=>void;fullScreen?:boolean}){
+ const kind=chart.type||'bar';
+ const [viewport,setViewport]=useState(window.innerHeight);
+ useEffect(()=>{if(!fullScreen)return;const resize=()=>setViewport(window.innerHeight);window.addEventListener('resize',resize);return()=>window.removeEventListener('resize',resize)},[fullScreen]);
+ const [zoom,setZoom]=useState(100),[start,setStart]=useState(0);
+ const complete=useMemo(()=>comparisonPoints(chart),[chart.evidence.records,chart.label,chart.value,chart.x,kind]);
+ useEffect(()=>setStart(0),[chart.evidence.records,kind]);
+ const count=Math.min(300,complete.length),offset=Math.min(start,Math.max(0,complete.length-count));
+ const data=complete.slice(offset,offset+count);
+ const horizontal=kind==='bar'||kind==='lollipop';
+ const width=horizontal?Math.max(700,700*zoom/100):kind==='donut'||kind==='scatter'?Math.max(600,800*zoom/100):Math.max(700,data.length*36*zoom/100);
+ const baseHeight=horizontal?Math.max(280,data.length*28*zoom/100):kind==='scatter'?Math.max(280,320*zoom/100):320;
+ const height=fullScreen?Math.max(baseHeight,viewport-300):baseHeight;
+ const mark=(p:any)=>{const item=p?.payload??p;if(typeof item?.index==='number')onMark(item.index)};
+ const hit=(state:any)=>{if((state?.activeTooltipIndex??state?.activeIndex)!=null){const item=data[Number(state.activeTooltipIndex??state.activeIndex)];if(item)onMark(item.index)}};
+ if(!data.some(r=>r.value!==null))return <p className="insights-empty">No numeric values available.</p>;
+ const tick=(v:any)=>typeof v==='number'?Intl.NumberFormat('en',{notation:'compact',maximumFractionDigits:1}).format(v):String(v).slice(0,18);
+ const tooltip=<Tooltip formatter={(v:any)=>[number(v),chart.value]} contentStyle={{border:'1px solid #dfe9e4',borderRadius:10}}/>;
+ return <div className="insight-graphic" role="group" aria-label={chart.title}><div className="graph-navigation" role="group" aria-label={'Graph controls for '+chart.title}><label>Zoom <input type="range" min={50} max={200} step={25} value={zoom} aria-label={'Zoom '+chart.title} onChange={event=>setZoom(Number(event.target.value))}/><output>{zoom}%</output></label><button className="secondary" onClick={()=>{setZoom(100);setStart(0)}}>Reset view</button><span>{complete.length?offset+1:0}–{offset+data.length} of {complete.length.toLocaleString()} comparison values</span>{complete.length>300&&<><button className="secondary" disabled={!offset} onClick={()=>setStart(Math.max(0,offset-300))}>Previous values</button><label>Start value <input type="range" min={0} max={complete.length-count} value={offset} aria-label={'Start comparison value for '+chart.title} onChange={event=>setStart(Number(event.target.value))}/></label><button className="secondary" disabled={offset+count>=complete.length} onClick={()=>setStart(Math.min(complete.length-count,offset+300))}>Next values</button></>}</div><div className="graph-scroll" role="region" tabIndex={0} aria-label={'Scrollable graph: '+chart.title}><div style={{width,height,minWidth:'100%'}} role="img" aria-label={chart.title}><span className="sr-only">{data.map(r=>r.label+': '+number(r.value)).join(', ')}</span><ResponsiveContainer width="100%" height={height} minWidth={0}>
+ {kind==='scatter'?<ScatterChart margin={{top:12,right:20,bottom:15,left:5}}><CartesianGrid strokeDasharray="3 3"/><XAxis type="number" dataKey="x" name={chart.x} tickFormatter={tick} tick={{fontSize:10}}/><YAxis type="number" dataKey="value" name={chart.value} tickFormatter={tick} tick={{fontSize:10}}/><Tooltip cursor={{strokeDasharray:'3 3'}} formatter={(v:any,name:any)=>[number(v),name]} contentStyle={{borderRadius:10}}/><Scatter onClick={mark} data={data.filter(r=>r.x!==null&&r.value!==null)} fill="#967ce3" isAnimationActive={false}/></ScatterChart>:
+ kind==='donut'?<PieChart><Pie onClick={mark} data={data} dataKey="value" nameKey="label" innerRadius={62} outerRadius={103} paddingAngle={2} isAnimationActive={false}>{data.map((_,i)=><Cell key={i} fill={colors[i%colors.length]}/>)}</Pie>{tooltip}</PieChart>:
+ kind==='line'?<LineChart onClick={hit} data={data} margin={{top:12,right:20,bottom:8,left:0}}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="label" tick={{fontSize:10}} tickFormatter={tick}/><YAxis tickFormatter={tick} tick={{fontSize:10}}/>{tooltip}<Line dataKey="value" stroke="#0c9c74" strokeWidth={3} dot={{r:4}} connectNulls={false} isAnimationActive={false}/></LineChart>:
+ kind==='area'?<AreaChart onClick={hit} data={data} margin={{top:12,right:20,bottom:8,left:0}}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="label" tick={{fontSize:10}} tickFormatter={tick}/><YAxis tickFormatter={tick} tick={{fontSize:10}}/>{tooltip}<Area dataKey="value" stroke="#65a9ed" fill="#e2effc" strokeWidth={2} connectNulls={false} isAnimationActive={false}/></AreaChart>:
+ <BarChart data={data} layout={kind==='column'?'horizontal':'vertical'} margin={{top:12,right:24,bottom:8,left:0}}><CartesianGrid strokeDasharray="3 3" horizontal={kind==='column'} vertical={kind!=='column'}/><XAxis type={kind==='column'?'category':'number'} dataKey={kind==='column'?'label':undefined} tickFormatter={tick} tick={{fontSize:10}}/><YAxis type={kind==='column'?'number':'category'} dataKey={kind==='column'?undefined:'label'} width={kind==='column'?55:110} tickFormatter={tick} tick={{fontSize:10}}/>{tooltip}<Bar onClick={mark} dataKey="value" shape={kind==='lollipop'?((p:any)=><g><line x1={p.value<0?p.x+p.width:p.x} x2={p.value<0?p.x:p.x+p.width} y1={p.y+p.height/2} y2={p.y+p.height/2} stroke="#65a9ed" strokeWidth={3}/><circle cx={p.value<0?p.x:p.x+p.width} cy={p.y+p.height/2} r={5} fill={p.value<0?'#eaa34d':'#487fbe'}/></g>):undefined} radius={3} maxBarSize={30} isAnimationActive={false}>{data.map((r,i)=><Cell key={i} fill={Number(r.value)<0?'#eaa34d':kind==='column'?colors[i%colors.length]:'#0c9c74'}/>)}</Bar></BarChart>}
+ </ResponsiveContainer></div></div>{kind==='donut'&&<div className="chart-legend">{data.map((r,i)=><span key={i}><i style={{background:colors[i%colors.length]}}/>{r.label}: {number(r.value)}</span>)}<small>Share of displayed categories; filters or an explicit top/bottom request may narrow this comparison.</small></div>}</div>
+}
+
+const MemoGraphic=memo(GraphicContent);
+export default function Graphic(props:Parameters<typeof GraphicContent>[0]){const handler=useRef(props.onMark);handler.current=props.onMark;const onMark=useCallback((index:number)=>handler.current(index),[]);return <MemoGraphic {...props} onMark={onMark}/>;}

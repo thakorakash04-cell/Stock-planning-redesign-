@@ -1,0 +1,32 @@
+{
+  "name": "stock-planning-ui",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "check": "tsc --noEmit",
+    "test": "node tests/cached-view.cjs && node tests/table-view.cjs && node tests/date-pivot.cjs && node tests/pivot-records.cjs && node tests/pivot-scroll.cjs && node tests/table-columns.cjs && node tests/column-segment-values.cjs && node tests/pivot.cjs && node tests/fast-start.cjs && node tests/workspace-restore.cjs && node tests/bootstrap-persistent-cache.cjs && node tests/workspace-parts.cjs && node tests/startup-ready.cjs && node tests/startup-tables.cjs && node tests/deferred-models.cjs && node tests/insights-navigation.cjs && node tests/insights-auto-refresh.cjs && node tests/insight-load-time.cjs && node tests/insight-cache-progress.cjs && node tests/insights-memory.cjs && node tests/insights-sharing.cjs && node tests/insight-persistent-display.cjs && node tests/checkbox-filters.cjs && node tests/insights-progress.cjs && node tests/insights-background-run.cjs && node tests/full-insight-graphic.cjs && node tests/insight-fast-edits.cjs && node tests/insight-fullscreen-save.cjs && node tests/insight-kpi.cjs && node tests/insights-dashboard.cjs && node tests/theme.cjs && node tests/planning-sync-link.cjs && node tests/fiori.cjs && node tests/bootstrap-delivery.cjs && node tests/account-navigation.cjs && node tests/ask-ai.cjs && node tests/ask-ai-fast.cjs && node tests/table-assistant.cjs && node tests/order-planning.cjs && node tests/matched-export.cjs && node tests/workspace-navigation.cjs && node tests/startup-issue-slip.cjs && node tests/issue-slip-layout.cjs && node tests/issue-slip-cache.cjs && node tests/floor-issue-slip.cjs && node tests/production-navigation.cjs && node tests/issue-requirements.cjs && node tests/production.cjs && node tests/production-rpc.cjs && node tests/view-preferences.cjs && node tests/production-refresh.cjs && node tests/production-cache.cjs && node tests/lead-time.cjs && node tests/table-layout.cjs && node tests/row-actions.cjs && node tests/pnl.cjs && node tests/pnl-export.cjs && node tests/sales.cjs && node tests/preload.cjs && node tests/segment-selection.cjs && node tests/product-links.cjs && node tests/sales-periods.cjs && node tests/product-panel.cjs && node tests/kpi-background.cjs && node tests/graph-background.cjs && node tests/overview.cjs",
+    "test:startup": "node --experimental-vm-modules tests/self-contained-startup.cjs && node --experimental-vm-modules tests/home-startup.cjs",
+    "test:pending-demand": "node tests/pending-demand.cjs && node tests/workspace-navigation.cjs && node tests/demand-plan.cjs",
+    "test:uploads": "node tests/upload-center.cjs",
+    "test:batch-cache": "node tests/batch-cache.cjs && node tests/cached-view.cjs && node tests/startup-issue-slip.cjs"
+  },
+  "dependencies": {
+    "lucide-react": "1.31.0",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
+    "react-markdown": "^10.1.0",
+    "recharts": "^3.10.1",
+    "remark-gfm": "^4.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.19",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.2",
+    "jsdom": "^30.1.3",
+    "typescript": "5.9.3",
+    "vite": "8.0.13"
+  }
+}

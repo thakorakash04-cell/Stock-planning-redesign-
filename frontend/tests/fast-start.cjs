@@ -1,0 +1,22 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),ts=require('typescript'),{JSDOM}=require('jsdom');
+for(const ext of ['.ts','.tsx'])require.extensions[ext]=(m,n)=>m._compile(ts.transpileModule(fs.readFileSync(n,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX,esModuleInterop:true}}).outputText,n);require.extensions['.css']=()=>{};
+const dom=new JSDOM('<div id="root"></div>',{url:'https://planning.test'});Object.assign(global,{window:dom.window,document:dom.window.document,HTMLElement:dom.window.HTMLElement,CustomEvent:dom.window.CustomEvent,localStorage:dom.window.localStorage,IS_REACT_ACT_ENVIRONMENT:true});
+const frames=[];window.requestAnimationFrame=fn=>(frames.push(fn),frames.length);const React=require('react'),{act}=React;let onReady,release,mounts=0;const calls=[];
+require.cache[require.resolve('../src/bridge.ts')]={loaded:true,exports:{startBridge:fn=>onReady=fn,rpc:async(action,payload)=>{calls.push({action,payload});if(action==='workspace_preload')return new Promise(resolve=>release=resolve);return{}}}};
+require.cache[require.resolve('../src/dashboard.tsx')]={loaded:true,exports:{__esModule:true,default:({user})=>{const[value,setValue]=React.useState('retained');React.useEffect(()=>{mounts++},[]);return React.createElement('div',null,user,React.createElement('input',{'aria-label':'retained view',value,onChange:e=>setValue(e.target.value)}))}}};
+const tick=()=>new Promise(r=>setTimeout(r,5)),args={user:'owner',role:'admin',permissions:{},accessScope:'owner-scope',version:'v1',data:{filename:'Master.xlsx',sheets:[]},preload:{deferred:true}};
+const drainFrames=async()=>act(async()=>{while(frames.length){frames.shift()();await tick()}});
+(async()=>{
+ await act(async()=>{require('../src/main.tsx');await tick()});assert(document.querySelector('.workspace-connecting'));
+ assert.equal(document.querySelector('progress').value,0);
+ await act(async()=>{onReady(args);await tick()});assert.equal(mounts,0,'Dashboard waits for cached views');assert.equal(calls.filter(c=>c.action==='workspace_preload').length,1);assert.equal(document.querySelector('progress').value,20);
+ await act(async()=>{onReady(args);await tick()});assert.equal(calls.filter(c=>c.action==='workspace_preload').length,1,'Host replies do not duplicate startup');
+ await act(async()=>{release({version:'v1',accessScope:'owner-scope',preload:{id:'warm1',sales:{primary:{version:'sales1',rows:[['A',3]]}},pnl:null}});await tick()});
+ assert.equal(document.querySelector('progress').value,100);assert.equal(mounts,0,'100% means data ready before the dashboard paints');
+ await drainFrames();assert.equal(mounts,1);assert.equal(require('../src/preload-cache.ts').salesSnapshot('primary').rows[0][0],'A');
+ const input=document.querySelector('input');await act(async()=>{input[Object.keys(input).find(k=>k.startsWith('__reactProps$'))].onChange({target:{value:'chosen filter'}})});
+ await act(async()=>{onReady({...args,preload:{id:'legacy-new',sales:{},pnl:null}});await tick()});assert.equal(mounts,1);assert.equal(input.value,'chosen filter');
+ await act(async()=>{onReady({...args,user:'viewer',role:'viewer',accessScope:'viewer-scope',preload:{deferred:false}});await tick()});
+ assert.equal(require('../src/preload-cache.ts').salesSnapshot('primary'),undefined);await drainFrames();assert.equal(mounts,2);
+ dom.window.close();console.log('PASS: staged percentage, dashboard waits for cached data, no duplicate startup, stable mounted views and account isolation.');
+})().catch(e=>{console.error(e);process.exitCode=1});

@@ -1,0 +1,28 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),ts=require('typescript'),{JSDOM}=require('jsdom');
+for(const ext of ['.ts','.tsx'])require.extensions[ext]=(m,n)=>m._compile(ts.transpileModule(fs.readFileSync(n,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX,esModuleInterop:true}}).outputText,n);
+const dom=new JSDOM('<div id="root"></div>',{url:'https://workspace.test'});Object.assign(global,{window:dom.window,document:dom.window.document,HTMLElement:dom.window.HTMLElement,CustomEvent:dom.window.CustomEvent,localStorage:dom.window.localStorage,IS_REACT_ACT_ENVIRONMENT:true});window.HTMLElement.prototype.scrollIntoView=function(){};
+const packets=[],chart={id:'g1',title:'Saved quantities',type:'bar',label:'Material',value:'Qty',evidence:{table:'Stock',source_id:'fresh-source',matched_records:1,result_rows:1,shown_rows:1,records:[{Material:'A',Qty:3}]}};
+let active=null;let saved={version:'v1',report_id:'restored',generated_at:'2026-10-27',cached:true,answer:'Saved business findings',sections:[{view:0,title:'Stock overview',records:1,limitation:'',charts:[chart]}]};
+require.cache[require.resolve('../src/bridge.ts')]={loaded:true,exports:{isAdmin:()=>false,rpc:async(action,payload)=>{packets.push({action,payload});if(action==='ai_status')return{version:'v1',tables:1,configured:true,saved_report:saved,active_analysis:active};if(action==='delete_insight_chart'){saved={...saved,report_id:'after-delete',sections:[{...saved.sections[0],charts:[]}]};return{report:saved}}return{}}}};
+require.cache[require.resolve('../src/record-grid.tsx')]={loaded:true,exports:{__esModule:true,default:()=>null}};
+const React=require('react'),{act}=React,{createRoot}=require('react-dom/client'),Insights=require('../src/insights.tsx').default,root=createRoot(document.getElementById('root')),tick=()=>new Promise(r=>setImmediate(r));
+saved.sections[0].charts.push({...chart,id:'g2',title:'Other graph'});saved.sections[0].kpis=[{id:'k1',title:'Total quantity',value:3,field:'sum(Qty)',basis:'EA',evidence:{...chart.evidence,records:[{'sum(Qty)':3}]}}];saved.sections[0].facets=[{column:'Material',values:['A','B']}];let fail=false;
+require.cache[require.resolve('../src/bridge.ts')].exports.rpc=async(action,payload)=>{
+ packets.push({action,payload});if(action==='ai_status')return{version:'v1',tables:1,configured:true,saved_report:saved};
+ if(action==='save_insight_item'||action==='delete_insight_chart'){assert.equal(payload.compact,true);assert.equal(payload.report_id,'restored','fast edits retain the session report ID');if(fail)throw Error('Could not commit saved layout');return{report_id:'restored',view:0,item_id:payload.chart_id||payload.kpi_id,item_kind:payload.item_kind||'chart',saved:action==='save_insight_item',deleted:action==='delete_insight_chart',chart_type:payload.chart_type,layout_revision:'revision'};}
+ if(action==='filter_insights')return{report_id:'restored',section:{...saved.sections[0],charts:[{...chart,evidence:{...chart.evidence,records:[{Material:'A',Qty:9}]}}]}};throw Error(action);
+};
+async function click(label){const button=document.querySelector('[aria-label="'+label+'"]');assert(button,label);await act(async()=>{button.click();await tick()})}
+(async()=>{
+ await act(async()=>{root.render(React.createElement(Insights));await tick()});await click('Full screen graph Saved quantities');
+ await act(async()=>{const input=document.querySelector('[aria-label="Zoom Saved quantities"]');input[Object.keys(input).find(k=>k.startsWith('__reactProps$'))].onChange({target:{value:'150'}});await tick()});
+ await click('Save graph Saved quantities');assert(document.querySelector('.graph-fullscreen').textContent.includes('saved for future analysis runs'));assert(document.querySelector('.graph-fullscreen').textContent.includes('150%'),'saving must not rebuild the chart or reset its controls');assert.equal(document.querySelector('[aria-label="Save graph Saved quantities"]').textContent,'Saved graph');
+ fail=true;await click('Save graph Saved quantities');assert(document.querySelector('.graph-fullscreen [role="alert"]').textContent.includes('Could not commit'),'save errors must be visible inside the active full-screen graph');fail=false;
+ await click('Exit graph full screen');await click('Delete graph Other graph');assert.equal(document.querySelectorAll('.insight-chart').length,1);assert(document.querySelector('.insight-chart').textContent.includes('Saved quantities'));
+ await click('Save KPI Total quantity');assert(document.querySelector('[aria-label="Save KPI Total quantity"]').textContent.includes('Saved KPI'));
+ await act(async()=>{document.querySelector('.insights-section .bi-filterbar .primary').click();await tick()});assert(document.querySelector('.insight-chart').textContent.includes('9'));assert.equal(packets.at(-1).action,'filter_insights');
+ await click('Delete graph Saved quantities');assert.equal(document.querySelectorAll('.insight-chart').length,0);assert.equal(packets.filter(p=>p.action==='ai_status').length,1);assert.equal(packets.filter(p=>p.action==='generate_insights').length,0);
+ await click('Delete KPI Total quantity');assert.equal(packets.at(-1).payload.item_kind,'kpi');assert.equal(packets.at(-1).payload.kpi_id,'k1');assert.equal(document.querySelectorAll('.dashboard-hero-tile').length,0);assert.equal(document.querySelectorAll('.bi-kpi-tile').length,0);await act(async()=>root.unmount());dom.window.close();console.log('PASS: compact saved/deleted patches retain the report token and graph zoom, expose full-screen commit failures, update only matching items and apply section filters without restoring/regenerating the report.');
+})().catch(e=>{console.error(e);process.exitCode=1});
+
+

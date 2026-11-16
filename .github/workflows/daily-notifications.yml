@@ -1,0 +1,48 @@
+name: Daily notification report (02:30 IST)
+
+on:
+  schedule:
+    # 21:00 UTC is 02:30 Asia/Kolkata on the following day.
+    - cron: '0 21 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: daily-notifications
+  cancel-in-progress: false
+
+jobs:
+  daily-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PORTAL_SECRETS: ${{ secrets.PORTAL_SECRETS }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      RESET_FROM_EMAIL: ${{ secrets.RESET_FROM_EMAIL }}
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      SMTP_HOST: ${{ secrets.SMTP_HOST }}
+      SMTP_PORT: ${{ secrets.SMTP_PORT }}
+      SMTP_USER: ${{ secrets.SMTP_USER }}
+      SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+      GEMINI_MODEL: ${{ secrets.GEMINI_MODEL }}
+      ASK_AI_MODEL: ${{ secrets.ASK_AI_MODEL }}
+    steps:
+      - name: Check out application source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Check sender configuration (no delivery)
+        run: python notification_config.py
+      - name: Install application dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Dispatch due reports using existing daily claims
+        run: python notification_worker.py

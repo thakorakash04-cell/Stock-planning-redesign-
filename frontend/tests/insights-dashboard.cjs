@@ -1,0 +1,30 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),ts=require('typescript'),{JSDOM}=require('jsdom');
+for(const ext of ['.ts','.tsx'])require.extensions[ext]=(m,n)=>m._compile(ts.transpileModule(fs.readFileSync(n,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX,esModuleInterop:true}}).outputText,n);
+const dom=new JSDOM('<div id="root"></div>',{url:'https://workspace.test'});
+Object.assign(global,{window:dom.window,document:dom.window.document,HTMLElement:dom.window.HTMLElement,CustomEvent:dom.window.CustomEvent,localStorage:dom.window.localStorage,IS_REACT_ACT_ENVIRONMENT:true});
+window.HTMLElement.prototype.scrollIntoView=function(){};
+const packets=[],evidence={source_id:'source',export_id:'export',table:'Stock',matched_records:100,result_rows:2,shown_rows:2,records:[{Segment:'Alpha',Qty:45},{Segment:'Beta',Qty:55}]};
+const section={view:0,title:'Stock overview',records:100,limitation:'Snapshot',facets:[{column:'Segment',values:['Alpha','Beta']}],kpis:[{title:'Full quantity',value:100,field:'sum(Qty)',basis:'Full matching source, units',evidence:{...evidence,records:[{'sum(Qty)':100}]}}],charts:[{title:'Quantity by segment',type:'bar',label:'Segment',value:'Qty',evidence}]};
+require.cache[require.resolve('../src/bridge.ts')]={loaded:true,exports:{isAdmin:()=>false,rpc:async(action,payload)=>{packets.push({action,payload});if(action==='ai_status')return {configured:true,version:'v1',tables:1};if(action==='generate_insights')return {version:'v1',report_id:'r1',answer:'Review the matching evidence.',generated_at:'2026-10-26',sections:[section]};if(action==='insight_records')return {records:[{Material:'A',Qty:45}],total:1,page:payload.page,page_size:50};if(action==='filter_insights')return {report_id:'r1',section:{...section,kpis:[{...section.kpis[0],value:45}],records:45,filters:payload.filters,review_mode:'calculated'}};return{}}}};
+require.cache[require.resolve('../src/record-grid.tsx')]={loaded:true,exports:{__esModule:true,default:({records})=>require('react').createElement('pre',null,JSON.stringify(records))}};
+const React=require('react'),{act}=React,{createRoot}=require('react-dom/client'),Insights=require('../src/insights.tsx').default,root=createRoot(document.getElementById('root')),tick=()=>new Promise(r=>setImmediate(r));
+(async()=>{
+ await act(async()=>{root.render(React.createElement(Insights));await tick()});
+ await act(async()=>{document.querySelector('.aiconsent input').click();document.querySelector('.insights-controls button').click();await tick()});
+ // Consent click and generation occur in distinct React updates.
+ if(!document.querySelector('.bi-kpi'))await act(async()=>{document.querySelector('.insights-controls button').click();await tick()});
+ assert.ok(document.querySelector('.bi-kpi').textContent.includes('100'));
+ assert.ok(document.querySelector('.bi-kpis').compareDocumentPosition(document.querySelector('.insights-grid'))&4,'KPIs precede graphs');
+ await act(async()=>{document.querySelector('.bi-kpi').click();await tick()});
+ assert.equal(packets.at(-1).action,'insight_records');assert.equal(packets.at(-1).payload.mark,undefined);
+ await act(async()=>{document.querySelector('[aria-label="Close graph data"]').click();await tick()});
+ await act(async()=>{const picker=document.querySelector('.bi-value-picker select');picker.value='1';picker.dispatchEvent(new window.Event('change',{bubbles:true}));await tick()});
+ assert.equal(packets.at(-1).payload.mark,1);assert.ok(document.querySelector('[role="dialog"]').textContent.includes('Records contributing to this value'));
+ await act(async()=>{document.querySelector('[aria-label="Close graph data"]').click();await tick()});
+ await act(async()=>{const options=document.querySelector('[aria-label="Insight Segment choices"]');options.querySelectorAll('.checkbox-values input')[0].click();await tick()});
+ await act(async()=>{document.querySelector('[aria-label="Insight Segment choices"]').querySelectorAll('.checkbox-values input')[1].click();await tick()});
+ await act(async()=>{document.querySelector('.bi-filter-actions .primary').click();await tick()});
+ assert.deepEqual(packets.find(p=>p.action==='filter_insights').payload.filters,[{column:'Segment',op:'in',value:['Alpha','Beta']}]);
+ assert.ok(document.querySelector('.bi-kpi').textContent.includes('45'));
+ await act(async()=>root.unmount());console.log('Passed: KPI-first layout, KPI evidence, selected-value drill-through and server filter recalculation.');
+})().catch(e=>{console.error(e);process.exitCode=1});

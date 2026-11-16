@@ -1,0 +1,22 @@
+.pivot-panel{margin:16px 0;padding:16px;border:1px solid var(--border,#cbd5e1);border-radius:10px;background:var(--surface,#fff);color:var(--text,#0f172a)}.pivot-panel .toolbar{gap:12px;align-items:flex-start;flex-wrap:wrap}.pivot-panel th button{color:inherit;background:transparent;border:0;font-weight:600;text-align:left}.pivot-field-order{display:flex;flex-wrap:wrap;gap:6px;max-width:440px}.pivot-field-order span{display:inline-flex;align-items:center;gap:5px;padding:3px 6px;border:1px solid var(--border,#cbd5e1);border-radius:6px}.pivot-field-order button{min-width:25px;padding:2px 5px}.pivot-panel .tablewrap{max-height:460px;overflow:auto}.pivot-panel th{position:sticky;top:0}.pivot-panel input{max-width:220px}
+:root[data-theme="dark"] .pivot-panel{background:#182431;color:#e5edf5;border-color:#43596c}
+
+.pivot-value{background:transparent;border:0;color:inherit;font:inherit;padding:3px 2px;text-align:inherit;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;cursor:pointer}.pivot-value:hover,.pivot-value:focus-visible{color:#087b73;outline:2px solid #40a69c;outline-offset:2px}.pivot-match-overlay{position:fixed;inset:0;z-index:2100;display:flex;align-items:center;justify-content:center;padding:20px;background:#0f172a88}.pivot-match-dialog{width:min(1400px,96vw);max-height:94dvh;overflow:auto;padding:22px;border-radius:12px;background:#fff;color:#172b3a;box-shadow:0 20px 70px #0004}.pivot-match-dialog .paneltitle{align-items:flex-start}.pivot-input-toggle{display:flex;align-items:center;gap:8px;margin-bottom:14px}:root[data-theme="dark"] .pivot-match-dialog{background:#182431;color:#e5edf5}@media(max-width:600px){.pivot-match-overlay{padding:6px}.pivot-match-dialog{width:100%;padding:12px}}
+
+.pivot-subtotal td{background:var(--surface-alt,#f1f5f9);font-weight:600}.pivot-subtotal small{display:block;font-size:10px;opacity:.75}.pivot-panel .toolbar label:has(>input[type="checkbox"]){display:inline-flex;align-items:center;gap:6px}:root[data-theme="dark"] .pivot-subtotal td{background:#243646}
+
+/* Full-screen pivot output keeps both scroll axes reachable. */
+.datagrid.grid-expanded.grid-with-pivot{overflow-y:scroll;overflow-x:hidden;scrollbar-gutter:stable;overscroll-behavior:contain}
+.datagrid.grid-expanded.grid-with-pivot>.gridtools{position:sticky;top:0;z-index:10;max-height:40dvh;overflow:auto;background:var(--surface,#fff)}
+.datagrid.grid-expanded.grid-with-pivot>.pivot-panel{flex:0 0 auto;min-width:0;max-width:100%;min-height:0}
+.datagrid.grid-expanded.grid-with-pivot>.gridtable{flex:0 0 auto;min-height:180px;max-height:55dvh!important;overflow:auto}
+.datagrid.grid-expanded.grid-with-pivot .pivot-output-scroll{max-height:60dvh;overflow:scroll;scrollbar-gutter:stable;overscroll-behavior:contain}
+.pivot-output-scroll:focus-visible{outline:2px solid #168574;outline-offset:2px}
+.datagrid.grid-expanded.grid-with-pivot .pivot-output-scroll table{width:max-content;min-width:100%}
+.datagrid.grid-expanded.grid-with-pivot .pivot-output-scroll :is(th,td){white-space:nowrap}
+.datagrid.grid-expanded.grid-with-pivot,.pivot-output-scroll{scrollbar-width:auto;scrollbar-color:#879eaa #eef3f5}
+.datagrid.grid-expanded.grid-with-pivot::-webkit-scrollbar,.pivot-output-scroll::-webkit-scrollbar{width:12px;height:12px}
+.datagrid.grid-expanded.grid-with-pivot::-webkit-scrollbar-track,.pivot-output-scroll::-webkit-scrollbar-track{background:#eef3f5}
+.datagrid.grid-expanded.grid-with-pivot::-webkit-scrollbar-thumb,.pivot-output-scroll::-webkit-scrollbar-thumb{background:#879eaa;border:2px solid #eef3f5;border-radius:8px}
+:root[data-theme="dark"] .datagrid.grid-expanded.grid-with-pivot>.gridtools{background:#182431}
+:root[data-theme="dark"] :is(.datagrid.grid-expanded.grid-with-pivot,.pivot-output-scroll){scrollbar-color:#8196aa #243646}

@@ -1,0 +1,15 @@
+const fs=require('fs'),assert=require('node:assert/strict'),ts=require('typescript');
+for(const ext of ['.ts','.tsx'])require.extensions[ext]=(m,n)=>m._compile(ts.transpileModule(fs.readFileSync(n,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX,esModuleInterop:true}}).outputText,n);
+const {startupTables}=require('../src/startup-tables.ts');
+const normal={headers:['Material','Qty'],rows:[['A',2]]},batch=['A',3],data={accessibleTabs:Array.from({length:12},(_,i)=>i),sheets:Array.from({length:7},(_,i)=>({name:'S'+i,...normal})),production:{ongoingHeaders:normal.headers,ongoing:[{row:batch}],qc:normal,upcomingHeaders:normal.headers,upcoming:[{row:batch}]},leadTime:normal,orderRequirements:{summary:normal}};
+data.sheets[4]={name:'S4',headers:['Material','Description','Year','Month','Forecast','Transfer','Stock','Pending'],rows:[['A','Item',2026,1,10,2,3,5],['A','Item',2026,2,20,4,3,13]]};
+const finance={sales:{primary:normal,secondary:normal},pnl:{params:{fy:2026},report:{monthly:normal,productAllocation:normal}}};
+const scopes=['main:S0','main:S4','main:S4:totals','production:ongoing','production:qc','production:upcoming','lead-time:details','order-requirements-master','sales:primary','sales:secondary','pnl:monthly:2026','pnl:product-allocations'];
+const prefs=Object.fromEntries(scopes.map(scope=>['columns:'+scope,{definitions:[{name:'Added'}]}]));prefs['columns:unknown:clicked-record']={definitions:[{name:'Added'}]};
+const tables=startupTables(data,finance,prefs);assert.deepEqual(tables.map(t=>t.scope),scopes);
+assert.equal(tables.find(t=>t.scope==='production:ongoing').rows[0],batch);
+assert.deepEqual(tables.find(t=>t.scope==='main:S4:totals').rows,[['A','Item',30,6,3,21]]);
+assert.equal(tables.find(t=>t.scope==='main:S4').rows,data.sheets[4].rows,'Monthly and totals calculations retain distinct original grains');
+assert.deepEqual(startupTables({...data,accessibleTabs:[0]},finance,prefs).map(t=>t.scope),['main:S0']);
+assert.deepEqual(startupTables(data,finance,{}),[]);
+console.log('PASS: startup table scopes, saved definitions, forecast grains, production identity and permitted-view filtering.');

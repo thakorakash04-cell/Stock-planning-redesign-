@@ -1,0 +1,19 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),ts=require('typescript'),{JSDOM}=require('jsdom');
+for(const ext of ['.ts','.tsx'])require.extensions[ext]=(m,n)=>m._compile(ts.transpileModule(fs.readFileSync(n,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX,esModuleInterop:true}}).outputText,n);
+const dom=new JSDOM('<div id="root"></div>',{url:'https://workspace.test'});Object.assign(global,{window:dom.window,document:dom.window.document,HTMLElement:dom.window.HTMLElement,CustomEvent:dom.window.CustomEvent,IS_REACT_ACT_ENVIRONMENT:true});window.HTMLElement.prototype.scrollIntoView=function(){};
+const calls=[];let version='v1',stamp='old',finish;
+const report={version:'v1',report_id:'job-report',generated_at:'2026-11-02',answer:'',overview:'Partial review',sections:[{view:0,title:'Stock',records:1,charts:[],kpis:[],facets:[]}]};
+require.cache[require.resolve('../src/bridge.ts')]={loaded:true,exports:{isAdmin:()=>false,tableColumnSnapshot:()=>({user:'alice',accessScope:'alice',version}),rpc:async(action,payload)=>{calls.push({action,payload});if(action==='ai_status')return{version,configured:true,workbook_ready:true,report_stamp:stamp,saved_report:null};if(action==='generate_insights'){if(!payload.job_id)return{pending:true,job_id:'job1',step:0};if(payload.step===0)return{pending:true,job_id:'job1',step:1,report,progress:{percent:50,label:'Writing findings'}};return new Promise(r=>finish=()=>r({pending:false,job_id:'job1',step:2,report:{...report,overview:'Completed single run'}}));}return{}}}};
+require.cache[require.resolve('../src/record-grid.tsx')]={loaded:true,exports:{__esModule:true,default:()=>null}};
+const React=require('react'),{act}=React,{createRoot}=require('react-dom/client'),Insights=require('../src/insights.tsx').default,root=createRoot(document.getElementById('root')),tick=()=>new Promise(r=>setImmediate(r));
+async function start(){await act(async()=>{document.querySelector('.aiconsent input').click();await tick()});await act(async()=>{document.querySelector('.insights-controls button').click();await tick()});assert(finish);}
+(async()=>{
+ await act(async()=>{root.render(React.createElement(Insights));await tick()});await start();const node=document.querySelector('.insights-page'),checks=calls.filter(c=>c.action==='ai_status').length;
+ stamp='changed-cache-stamp';await act(async()=>{for(const name of ['stock-data-updated','stock-source-versions','stock-manual-data-updated'])window.dispatchEvent(new window.Event(name));await tick();await tick()});
+ assert.equal(calls.filter(c=>c.action==='ai_status').length,checks,'Background refresh must not restore old cache over an active job');
+ assert.equal(document.querySelector('.insights-page'),node);assert(document.querySelector('.insights-controls button').textContent.includes('Analysing'));
+ await act(async()=>{finish();await tick()});assert(document.querySelector('.insight-summary').textContent.includes('Completed single run'));assert.equal(calls.filter(c=>c.action==='generate_insights'&&!c.payload.job_id).length,1);
+ await act(async()=>{document.querySelector('.insights-controls button').click();await tick()});version='v2';await act(async()=>{window.dispatchEvent(new window.Event('stock-data-updated'));await tick();await tick()});await act(async()=>{finish();await tick()});
+ assert(!document.querySelector('.insight-summary'),'A real workbook change must invalidate the old partial/completed report');assert.equal(document.querySelector('.insights-controls button').textContent.trim(),'Run analysis');
+ await act(async()=>root.unmount());dom.window.close();console.log('PASS: same-workbook background refreshes keep one mounted generation; real workbook replacement invalidates old results.');
+})().catch(e=>{console.error(e);process.exitCode=1});

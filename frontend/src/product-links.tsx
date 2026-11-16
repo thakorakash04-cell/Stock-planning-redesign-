@@ -1,0 +1,12 @@
+import {createContext} from 'react';
+export type ProductLink={id:string;name:string;division:string;codes:string[];url:string;snapshotVersion?:string};
+export type ProductCatalogue={version:string;products:ProductLink[];detailsAllowed?:boolean;accessVersion?:string};
+export const ProductLinks=createContext<ProductCatalogue>({version:'empty',products:[]});
+export const skuKey=(v:unknown)=>String(v??'').normalize('NFKC').replaceAll('\u200b','').trim().replace(/^([+-]?\d+)\.0+$/,'$1').toLowerCase();
+const norm=(v:string)=>v.toLowerCase().replace(/[^a-z0-9]/g,'');
+export function productColumns(headers:string[]){const primary=headers.map((h,i)=>['material','materialcode','materialnumber','materialno','fgcode','fgmaterial','fgmaterialcode','fgmaterialnumber','sku','skucode','product','productcode'].includes(norm(h))?i:-1).filter(i=>i>=0);const keys=primary.length?primary:headers.map((h,i)=>['component','componentcode'].includes(norm(h))?i:-1).filter(i=>i>=0);const aliases=['description','materialdescription','materialtext','productdescription','materialdescription1',...(!primary.length?['componenttext','componentdescription']:[])];const descriptions=headers.map((h,i)=>aliases.includes(norm(h))?i:-1).filter(i=>i>=0);return {keys,descriptions};}
+export function productIndex(catalogue:ProductCatalogue){const result=new Map<string,ProductLink[]>();for(const p of catalogue.products)for(const code of p.codes){const key=skuKey(code),items=result.get(key)||[];if(!items.some(x=>x.id===p.id))items.push(p);result.set(key,items)}return result;}
+export function ProductAnchor({products,label}:{products:ProductLink[];label:string}){const button=(p:ProductLink,text:string)=><button type="button" className="product-link" key={p.id} onClick={e=>{const menu=e.currentTarget.closest('details');if(menu)menu.open=false;window.dispatchEvent(new window.CustomEvent('stock-open-product',{detail:{productId:p.id}}))}} title={'Open product inside Planning · '+p.name}>{text}</button>;return products.length===1?button(products[0],label):<details className="product-choices"><summary>{label}</summary>{products.map(p=>button(p,p.name))}</details>}
+
+export function groupingHeaders(headers:string[],catalogue?:ProductCatalogue){return catalogue&&catalogue.version!=='empty'&&productColumns(headers).keys.length&&!headers.includes('Product Name')?[...headers,'Product Name']:headers}
+export const groupingValue=(header:string,index:number)=>header==='Product Name'?-2:index;
