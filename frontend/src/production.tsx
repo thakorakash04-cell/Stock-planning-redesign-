@@ -1,3 +1,4 @@
+import PlanOrigin,{type PlanProvenance} from './plan-origin';
 import {cachedView} from './cached-view';
 import GroupSelect from './group-select';
 import IssueRequirements from './issue-requirements';
@@ -11,7 +12,7 @@ import DataGrid from './data-grid';
 import SourceDetails from './source-details';
 import {useViewPreference} from './view-preference';
 import type {Cell} from './model-data';
-type Item={demandReason?:string;availability?:Check;materialCode?:string;segments?:string[];id:string;revision:number;row:Cell[]};
+type Item={demandProvenance?:PlanProvenance|null;demandReason?:string;availability?:Check;materialCode?:string;segments?:string[];id:string;revision:number;row:Cell[]};
 type Material={code:string;description:string;type:string;unit:string};
 type Check={sourceStamp?:number;checkedAt?:number;available:boolean;error?:string;headers?:string[];rows?:Cell[][];calculationHeaders?:string[];calculations?:Cell[][];explanation?:string;warnings?:string[];version:string;revision:number};
 type BatchCheck={issueHeaders?:string[];issueRows?:Cell[][];available:boolean;version:string;sourceStamp?:number;signature:string;checkedAt:number;planStatuses:Record<string,string>;planHeaders?:string[];planRows?:Cell[][];headers?:string[];rows?:Cell[][];explanation?:string};
@@ -37,7 +38,7 @@ export default function Production({revision,initialReport,children,section}:{se
  const editingItem=edit?.id?report?.[edit.kind as 'ongoing'|'upcoming'].find(i=>i.id===edit.id):undefined;
  const batchKey=report?JSON.stringify([report.version,report.sourceStamp,report.upcoming.map(i=>[i.id,i.revision,i.materialCode,i.row.slice(3,6)])]):'';
  const batchSummary=batchResult?.key===batchKey?batchResult.result:report?.batchAvailability?.sourceStamp===report?.sourceStamp?report?.batchAvailability:null;
- function rowActions(kind:'ongoing'|'upcoming',row:Cell[]){const item=report?.[kind].find(i=>i.row===row);if(!item)return null;const editable=can(kind==='ongoing'?'edit_production':'edit_upcoming');const status=kind==='upcoming'?batchSummary?.planStatuses[item.id]:undefined;return <div className="planning-row-actions" aria-label={'Actions for '+item.id}>{kind==='upcoming'&&item.demandReason&&<span className="smallnote">{item.demandReason}</span>}{status&&<span className={status==='Ready'?'materials-ready':'materials-short'}>{status}</span>}{editable&&<button className="secondary" disabled={busy} onClick={()=>begin(item,kind)}>{kind==='ongoing'?'Edit order':'Edit'} {String(item.row[0])}</button>}{editable&&kind==='upcoming'&&<button className="secondary" disabled={busy} onClick={()=>{setError('');setDeleting(item)}}>Delete {String(item.row[0])}</button>}{kind==='upcoming'&&<button className="secondary" disabled={busy} onClick={()=>loadHistory(item.id)}>View history</button>}</div>}
+ function rowActions(kind:'ongoing'|'upcoming',row:Cell[]){const item=report?.[kind].find(i=>i.row===row);if(!item)return null;const editable=can(kind==='ongoing'?'edit_production':'edit_upcoming');const status=kind==='upcoming'?batchSummary?.planStatuses[item.id]:undefined;return <div className="planning-row-actions" aria-label={'Actions for '+item.id}>{kind==='upcoming'&&<PlanOrigin reason={item.demandReason} value={item.demandProvenance}/>}{status&&<span className={status==='Ready'?'materials-ready':'materials-short'}>{status}</span>}{editable&&<button className="secondary" disabled={busy} onClick={()=>begin(item,kind)}>{kind==='ongoing'?'Edit order':'Edit'} {String(item.row[0])}</button>}{editable&&kind==='upcoming'&&<button className="secondary" disabled={busy} onClick={()=>{setError('');setDeleting(item)}}>Delete {String(item.row[0])}</button>}{kind==='upcoming'&&<button className="secondary" disabled={busy} onClick={()=>loadHistory(item.id)}>View history</button>}</div>}
  const generation=useRef(0),request=useRef(0);
  async function load(){const gen=generation.current,seq=++request.current;try{const next=await cachedView('production_status');if(gen===generation.current&&seq===request.current){setReport(next);setError('')}}catch(e){if(gen===generation.current&&seq===request.current)setError(e instanceof Error?e.message:String(e))}}
 
