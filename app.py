@@ -1,6 +1,6 @@
 from __future__ import annotations
 import stock_accounts.pending_sales as _pending_sales
-if getattr(_pending_sales,'REVISION',0)!=3:
+if getattr(_pending_sales,'REVISION',0)!=4:
     import importlib as _pending_importlib
     _pending_sales=_pending_importlib.reload(_pending_sales)
 import notification_format as _notification_format

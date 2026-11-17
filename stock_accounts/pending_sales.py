@@ -2,7 +2,7 @@
 import base64,copy,gzip,hashlib,json,math,re,threading,time
 from collections import OrderedDict,defaultdict
 from datetime import date,datetime
-REVISION=3
+REVISION=4
 _lock=threading.RLock()
 REASONS={'creditholdnostock':'Credit Hold No Stock','releasenostock':'Credit Release No Stock'}
 BATCH_HEADERS=['Product Code','Description','Quantity','Unit','Suggestions','Pending Sales + Forecast Qty','FG Stock Applied to Sales','Segment']
@@ -208,7 +208,10 @@ def build(data,orders,identity):
  from .bom_prices import pack_index
  packs=pack_index(data)
  product_details={k:{'unit':next(iter(units[k])) if len(units[k])==1 else None,'packSize':next(iter(packs[k])) if len(packs.get(k,set()))==1 else None} for k in stocks if visible(k)}
- return {'productDetails':product_details,'visibleStock':[k for k in stocks if visible(k)],'summary':summary,'headers':BATCH_HEADERS,'rows':rows,'components':batch,'warnings':warnings,'notes':['Combined requirement = positive sales shortage (credit hold + credit release no stock, less FG stock once) + positive forecast pending quantity. Suggestions show each contributing requirement category.','Stock Overview Pending Sales Quantity = credit hold no-stock Pending Qty + credit release no-stock Pending Qty + permitted forecast pending quantity. The drill-through shows both pending quantities and production requirements.','Forecast pending already deducts transfers and FG stock; do not deduct stock from it again. Sales and forecast are added together as requested, even if the underlying business demand overlaps.','Different units are never added. Missing stock or unit matches remain review warnings. Quantities are requirements, not a calculated count of batches.']}
+ from .demand_readiness import build as readiness_build
+ from .segment_access import scope_data
+ readiness=readiness_build(scope_data(data,identity.get('allowedSegments')),rows) if allowed(identity,3) else {}
+ return {'materialReadiness':readiness,'productDetails':product_details,'visibleStock':[k for k in stocks if visible(k)],'summary':summary,'headers':BATCH_HEADERS,'rows':rows,'components':batch,'warnings':warnings,'notes':['Combined requirement = positive sales shortage (credit hold + credit release no stock, less FG stock once) + positive forecast pending quantity. Suggestions show each contributing requirement category.','Stock Overview Pending Sales Quantity = credit hold no-stock Pending Qty + credit release no-stock Pending Qty + permitted forecast pending quantity. The drill-through shows both pending quantities and production requirements.','Forecast pending already deducts transfers and FG stock; do not deduct stock from it again. Sales and forecast are added together as requested, even if the underlying business demand overlaps.','Different units are never added. Missing stock or unit matches remain review warnings. Quantities are requirements, not a calculated count of batches.']}
 
 
 def read(store,actor,event=None):
