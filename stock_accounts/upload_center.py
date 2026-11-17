@@ -1,5 +1,5 @@
 """Admin-only source metadata for the website's unified upload workspace."""
-REVISION=2
+REVISION=3
 
 def metadata(store,actor,include_versions=False):
  with store.transaction() as db:
@@ -9,7 +9,8 @@ def metadata(store,actor,include_versions=False):
  from .sales import metadata as sales_metadata
  from .pnl import metadata as pnl_metadata
  # Only source headers/timestamps leave the server, never source payloads.
- result={'master':dict(master) if master else None,'orders':info(store,actor),'sales':[{k:r[k] for k in ('kind','filename','version','updated_at','updated_by')} for r in sales_metadata(store,actor)],'pnl':[{k:r[k] for k in ('id','kind','fy','filename','version','updated_at','updated_by')} for r in pnl_metadata(store,actor)]}
+ from .source_freshness import uploaded
+ result={'master':uploaded(store,actor,'master',master),'orders':uploaded(store,actor,'orders',info(store,actor)), 'sales':[{k:r[k] for k in ('kind','filename','version','updated_at','updated_by','dataUpTo','dataDateBasis')} for r in sales_metadata(store,actor)],'pnl':[{k:r[k] for k in ('id','kind','fy','filename','version','updated_at','updated_by','dataUpTo','dataDateBasis')} for r in pnl_metadata(store,actor)]}
 
  if include_versions:
   from .preload import versions

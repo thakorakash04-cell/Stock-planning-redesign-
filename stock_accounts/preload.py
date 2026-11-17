@@ -3,7 +3,7 @@ import hashlib,json,uuid
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from .access import allowed
-REVISION=8
+REVISION=9
 
 def versions(store,actor):
     identity=store.identity(actor);out={}
@@ -18,20 +18,20 @@ def versions(store,actor):
         schema(store)
         with store.transaction() as db:
             store.require(db,actor)
-            rows=store.run(db,'SELECT id,version FROM stock_pnl_documents ORDER BY id').fetchall()
+            rows=store.run(db,'SELECT id,version,updated_at FROM stock_pnl_documents ORDER BY id').fetchall()
         from .sales import schema as sales_schema
         sales_schema(store)
         with store.transaction() as db:
             store.require(db,actor)
-            sales_rows=store.run(db,'SELECT kind,version FROM stock_sales_documents ORDER BY kind').fetchall()
-        out['pnl']=hashlib.sha256(json.dumps([PNL_REVISION,planning,product_version(store,actor),[(r['id'],r['version']) for r in rows],[(r['kind'],r['version']) for r in sales_rows]]).encode()).hexdigest()
+            sales_rows=store.run(db,'SELECT kind,version,updated_at FROM stock_sales_documents ORDER BY kind').fetchall()
+        out['pnl']=hashlib.sha256(json.dumps([PNL_REVISION,planning,product_version(store,actor),[(r['id'],r['version'],r['updated_at']) for r in rows],[(r['kind'],r['version'],r['updated_at']) for r in sales_rows]]).encode()).hexdigest()
     if allowed(identity,11):
         from .sales import schema
         schema(store)
         with store.transaction() as db:
             store.require(db,actor)
-            rows=store.run(db,'SELECT kind,version FROM stock_sales_documents ORDER BY kind').fetchall()
-        found={r['kind']:r['version'] for r in rows}
+            rows=store.run(db,'SELECT kind,version,updated_at FROM stock_sales_documents ORDER BY kind').fetchall()
+        found={r['kind']:(r['version'],r['updated_at']) for r in rows}
         from .sales import REVISION as sales_revision
         out['primary']=str(sales_revision)+':'+str(found.get('primary'))+':'+str(planning)
         out['secondary']=str(sales_revision)+':'+str(found.get('secondary'))+':'+str(planning)

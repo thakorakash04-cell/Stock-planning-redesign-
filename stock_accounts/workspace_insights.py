@@ -58,7 +58,7 @@ def _handle_request(store,actor,event):
         return handle(store,actor,event)
     if action=='uploads_status':
         from . import upload_center
-        if getattr(upload_center,'REVISION',0)!=2:
+        if getattr(upload_center,'REVISION',0)!=3:
             import importlib
             upload_center=importlib.reload(upload_center)
         return upload_center.metadata(store,actor,event.get('include_versions') is True)
@@ -264,7 +264,7 @@ def _render_exact_workspace(store,actor,identity):
         startup_meter.empty()
 
 # Increment with analysis protocol changes to invalidate hot-deployment helpers.
-INSIGHTS_REVISION=56
+INSIGHTS_REVISION=57
 
 PLANNING_REVISION=36
 

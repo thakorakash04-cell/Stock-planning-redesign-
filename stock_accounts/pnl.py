@@ -5,7 +5,7 @@ from datetime import date,timedelta
 from .store import AccessDenied
 from .pnl_import import code,coverage,day,fiscal,norm,number,read_master,read_salary,segment
 
-REVISION=9
+REVISION=10
 _lock=threading.RLock()
 DEFAULTS={'interest_rate':.085,'tax_rate':.18,'debtor_days':90.,'year_days':360,'transfer_multiplier':1,'transfer_movements':['601','602'],'transfer_sku_price':True,'inventory_override':None,'creditor_override':None,'mapping':{},'adjustments':{}}
 def authorize(store,actor,admin=False):
@@ -24,7 +24,9 @@ def metadata(store,actor):
     authorize(store,actor);schema(store)
     with store.transaction() as db:
         store.require(db,actor)
-        return [dict(r) for r in store.run(db,'SELECT id,kind,fy,filename,version,updated_at,updated_by,segments FROM stock_pnl_documents ORDER BY fy DESC,kind').fetchall()]
+        rows=[dict(r) for r in store.run(db,'SELECT id,kind,fy,filename,version,updated_at,updated_by,segments FROM stock_pnl_documents ORDER BY fy DESC,kind').fetchall()]
+    from .source_freshness import uploaded
+    return [uploaded(store,actor,'pnl:'+r['id'],r) for r in rows]
 def read(store,actor,key):
     authorize(store,actor);schema(store)
     with store.transaction() as db:
@@ -433,7 +435,8 @@ def report(store,actor,event,detail=False):
                 store._pnl_results[key]=copy.deepcopy(result)
                 while len(store._pnl_results)>8:store._pnl_results.popitem(last=False)
     else:result=copy.deepcopy(cached)
-    result['planningSource']={k:current.get(k) for k in ('filename','version','updated_at')} if current else None
+    from .source_freshness import workbook_summary
+    result['planningSource']={**{k:current.get(k) for k in ('filename','version','updated_at')},**workbook_summary(current['data'])} if current else None
     if detail:
         kind=event.get('kind')
         if kind=='salary' and identity['role']!='admin':raise AccessDenied('Individual employee compensation is administrator-only.')
