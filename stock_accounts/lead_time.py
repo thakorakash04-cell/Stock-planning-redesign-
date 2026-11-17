@@ -168,7 +168,14 @@ def purchasing(dataset,averages=None,current=None,overrides=()):
     for product in products:link(product,set())
     out=[]
     for row in source['rows']:
-        r=list(row);code=key(r[0]);need=num(r[7]) if len(r)>7 else None;due=None
+        r=list(row);code=key(r[0]);due=None
+        # Replace stale workbook totals using the same dated BOM demand as order timing.
+        if len(r)>7 and code in linked and code not in invalid:
+            required=sum(demand[code].values())
+            stock=num(r[5]);onorder=num(r[6])
+            r[4]=required
+            r[7]=max(required-stock-onorder,0) if stock is not None and onorder is not None else None
+        need=num(r[7]) if len(r)>7 else None
         if need is not None and need>0:
             avg=averages.get(code,[None,None,None]);stock=num(r[5]);onorder=num(r[6]);coverage=None if stock is None or onorder is None else stock+onorder
             if code in invalid:due='Check BOM consumption'
@@ -200,5 +207,5 @@ def with_average(table,dataset,averages=None):
     return {**table,'headers':table['headers']+[AVERAGE_HEADER],
             'rows':[list(r)+[averages.get(key(r[0]),[None])[0]] for r in table['rows']]}
 
-REVISION=3
+REVISION=4
 
