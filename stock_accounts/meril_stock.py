@@ -6,6 +6,7 @@ import math
 from .sales import material_key,read
 from .pnl_import import norm
 
+REVISION=2
 HEADERS=['Expected Meril India Stock','Last uploaded Secondary sales data']
 
 def quantities(report):
@@ -44,3 +45,35 @@ def enrich(store,actor,payload,identity):
  if allowed(identity,11):reports=tuple(read(store,actor,{'kind':kind}) for kind in ('primary','secondary'))
  sheet=apply(payload['sheets'][0],*reports,payload.get('segmentMap',{}))
  return {**payload,'sheets':[sheet,*payload['sheets'][1:]]}
+
+
+def matching(report,material):
+ """Select exact FG rows with the same Energy Device exclusion as the estimate."""
+ if not report.get('available'):return []
+ hs=[norm(h) for h in report['headers']]
+ ci=next((i for i,h in enumerate(hs) if h in {'material','materialcode','materialnumber','sku','skucode','fgcode','materialno'}),None)
+ if ci is None:return []
+ return [row for row in report['rows'] if material_key(row[ci])==material_key(material) and norm(row[report['segmentIndex']]) not in {'energydevice','energydevices'}]
+
+
+def records(store,actor,event):
+ from .access import require_menu
+ from .sales import bom_source_index
+ require_menu(store,actor,0)
+ material=event.get('material')
+ if not isinstance(material,str) or not material.strip() or len(material)>200:raise ValueError('Choose a valid FG Code.')
+ reports={kind:read(store,actor,{'kind':kind}) for kind in ('primary','secondary')}
+ _,mapping,_=bom_source_index(store,actor)
+ if any(norm(s) in {'energydevice','energydevices'} for s in mapping.get(material_key(material),[])):
+  raise ValueError('Expected Meril India Stock excludes Energy Device.')
+ pages=event.get('pages',{})
+ if not isinstance(pages,dict):raise ValueError('Invalid record page.')
+ tables={}
+ for kind,report in reports.items():
+  page=pages.get(kind,0)
+  if type(page) is not int or not 0<=page<=500:raise ValueError('Invalid record page.')
+  rows=matching(report,material);totals=quantities(report)
+  tables[kind]={'headers':report.get('headers',[]),'rows':rows[page*200:(page+1)*200],'total':len(rows),'page':page,'billedQuantity':totals.get(material_key(material),0) if totals is not None else None,'source':report.get('source'),'available':report.get('available',False)}
+ a=tables['primary']['billedQuantity'];b=tables['secondary']['billedQuantity']
+ require_menu(store,actor,0)
+ return {'material':material,'primary':tables['primary'],'secondary':tables['secondary'],'expectedStock':a-b if a is not None and b is not None else None}

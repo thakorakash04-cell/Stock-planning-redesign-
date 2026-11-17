@@ -107,6 +107,9 @@ def handle_request(store,actor,event):
     """Never trust frontend visibility or a client-supplied role."""
     identity=store.identity(actor)
     action=event.get("action")
+    if action=="meril_stock_records":
+        from .meril_stock import records
+        return records(store,actor,event)
     if action in ('table_column_plan','table_columns_resolve'):
         from .table_columns import handle
         return handle(store,actor,event)
@@ -299,7 +302,7 @@ def render_exact_workspace(store,actor,identity):
     _component(preferences=preferences,preload=initial,**delivery,version=version,user=identity["username"],role=identity["role"],permissions=identity["permissions"],response=st.session_state.get("_ui_response"),default=None,key="exact_website_ui")
 
 
-WORKSPACE_UI_REVISION=43
+WORKSPACE_UI_REVISION=44
 
 
 
