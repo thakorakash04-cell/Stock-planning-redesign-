@@ -41,7 +41,7 @@ def workspace_payload(store,actor,*,cached_only=False):
         cached=st.session_state.get('_workspace_payload')
         # Only successful, already version-validated Insight interactions use
         # this branch. Access, session and workbook metadata are still checked.
-        if cached and len(cached[0])==9 and cached[0][:4]==(actor.username,actor.session_id,revision,str(identity['permissions'])) and cached[0][4]==27 and cached[0][7]==str(identity.get('allowedSegments')):
+        if cached and len(cached[0])==9 and cached[0][:4]==(actor.username,actor.session_id,revision,str(identity['permissions'])) and cached[0][4]==28 and cached[0][7]==str(identity.get('allowedSegments')):
             payload,tables,version=cached[1]
             return decorate_workspace(store,actor,payload,identity=identity),tables,version
     from .production import shared
@@ -53,7 +53,7 @@ def workspace_payload(store,actor,*,cached_only=False):
     from .access import allowed
     from .availability_cache import revision as availability_revision
     availability_key=availability_revision(store,actor,revision,identity) if allowed(identity,3) else ''
-    key=(actor.username,actor.session_id,revision,str(identity['permissions']),27,supply_revision,production_revision,str(identity.get('allowedSegments')),availability_key)
+    key=(actor.username,actor.session_id,revision,str(identity['permissions']),28,supply_revision,production_revision,str(identity.get('allowedSegments')),availability_key)
     cached=st.session_state.get('_workspace_payload')
     if not cached or cached[0]!=key:
         retained_key=(DELIVERY_REVISION,access_scope({**identity,'username':actor.username}),revision,supply_revision,production_revision,availability_key)
@@ -99,6 +99,8 @@ def decorate_workspace(store,actor,payload,catalog_version=None,identity=None):
     catalogue=read_product_catalog(store,actor,catalog_version)
     from .product_catalog import enrich_display
     payload,pending=enrich_display(payload,pending,catalogue)
+    from .meril_stock import enrich as meril_enrich
+    payload=meril_enrich(store,actor,payload,identity)
     return {**payload,'pendingSales':pending,'productCatalogue':catalogue,'workspaceRevision':6,'portal':{k:v for k,v in store.portal_read(actor).items() if k in ('title','subtitle','segments','navigation')}}
 
 def handle_request(store,actor,event):
@@ -297,7 +299,7 @@ def render_exact_workspace(store,actor,identity):
     _component(preferences=preferences,preload=initial,**delivery,version=version,user=identity["username"],role=identity["role"],permissions=identity["permissions"],response=st.session_state.get("_ui_response"),default=None,key="exact_website_ui")
 
 
-WORKSPACE_UI_REVISION=42
+WORKSPACE_UI_REVISION=43
 
 
 

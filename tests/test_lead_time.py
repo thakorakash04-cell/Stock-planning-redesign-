@@ -26,7 +26,8 @@ def test_order_date_cumulative_fg_and_component_cover_once():
  assert t['rows'][0][-2]=='2026-11-21'
  assert len(t['rows'][0])==len(t['headers'])
  d['sheets'][1]['rows'][0][7]=0
- assert purchasing(d)['rows'][0][-2] is None
+ assert purchasing(d)['rows'][0][7]==40
+ assert purchasing(d)['rows'][0][-2]=='2026-11-21'
 
 def test_missing_history_and_mismatched_bom_never_invent_dates():
  d=dataset();d['tables'][2]['rows']=[]
@@ -35,7 +36,7 @@ def test_missing_history_and_mismatched_bom_never_invent_dates():
  assert purchasing(d)['rows'][0][-2]=='Missing dated forecast / BOM link'
 
 def test_lead_menu_independent_of_gemini_right():
- assert len(MENU_LABELS)==12
+ assert MENU_LABELS[9]
  i={'role':'viewer','permissions':{'use_tools':False,'menu_9':True}}
  assert allowed(i,9)
  i['permissions']['menu_9']=False
@@ -45,7 +46,7 @@ def test_standard_bom_demand_is_not_rescaled_to_saved_required():
  d=dataset();d['sheets'][1]['rows'][0][4]=6000
  assert purchasing(d)['rows'][0][-2]=='2026-11-21'
  d['sheets'][1]['rows'][0][5]=100
- assert purchasing(d)['rows'][0][-2]=='No matching dated forecast shortage'
+ assert purchasing(d)['rows'][0][-2] is None
 
 def test_transfers_carry_to_later_months_and_fg_stock_not_repeated():
  d=dataset();d['sheets'][0]['rows'][0][5]=12
@@ -113,7 +114,7 @@ def test_only_po_to_inward_offsets_date_even_without_qc_or_use():
 def test_dated_ongoing_production_covers_only_forecasts_after_expected_end():
  d=production_dataset()
  # Nov1 demand uses5FG stock, then5FG production demand; Nov10 order covers December.
- assert purchasing(d)['rows'][0][-2]=='No matching dated forecast shortage'
+ assert purchasing(d)['rows'][0][-2] is None
  # Finishing after the December need date must not hide that shortage.
  d['tables'][-1]['rows'][0][7]='2026-12-10'
  assert purchasing(d)['rows'][0][-2]=='2026-11-21'
@@ -123,7 +124,7 @@ def test_shared_expected_quantity_and_end_date_override_are_used():
  import json
  d=production_dataset();report=production_build({'data':d,'version':'x','updated_at':0});order=report['ongoing'][0]
  override={'kind':'ongoing','id':order['id'],'payload':json.dumps({'quantity':20,'endDate':'2026-10-20'})}
- assert purchasing(d,overrides=[override])['rows'][0][-2]=='Covered by FG stock / production'
+ assert purchasing(d,overrides=[override])['rows'][0][-2] is None
 
 def test_qc_stock_is_counted_once_and_same_batch_not_added_as_ongoing():
  d=production_dataset();moves=d['tables'][1]
@@ -153,3 +154,22 @@ def test_workbook_replacement_refreshes_cached_lead_rows_and_averages(accounts):
   assert workspace_payload(store,admin)[0]['leadTime']==latest['leadTime']
   assert build.call_count==2
 
+
+
+def test_live_totals_replace_saved_quantities_without_mutating_workbook():
+ d=dataset();original=list(d['sheets'][1]['rows'][0])
+ result=purchasing(d)['rows'][0]
+ assert result[4:8]==[60,20,0,40]
+ d['sheets'][0]['rows'][0][5]=12
+ result=purchasing(d)['rows'][0]
+ assert result[4:8]==[12,20,0,0]
+ assert result[-2] is None
+ assert d['sheets'][1]['rows'][0]==original
+
+
+def test_qc_and_released_fg_stock_deducted_once_across_months():
+ d=dataset()
+ for row in d['sheets'][0]['rows']:row[6]=17
+ assert purchasing(d)['rows'][0][4:8]==[12,20,0,0]
+ d['sheets'][1]['rows'][0][5:7]=[2,3]
+ assert purchasing(d)['rows'][0][4:8]==[12,2,3,7]

@@ -5,7 +5,7 @@ Cached display data never authorizes requests or replaces source-version checks.
 """
 import copy,hashlib,json,pickle,threading
 from collections import OrderedDict
-REVISION=10
+REVISION=11
 PRODUCTION_CACHE_REVISION=2
 _LOCK=threading.RLock()
 MAX_BYTES=16*1024*1024

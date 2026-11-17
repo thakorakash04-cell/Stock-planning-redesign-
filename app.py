@@ -18,7 +18,7 @@ if getattr(_product_catalog,'REVISION',0)!=6:_daily_importlib.reload(_product_ca
 from stock_accounts import segment_access as _segment_access
 if getattr(_segment_access,'REVISION',0)!=2:_daily_importlib.reload(_segment_access)
 from stock_accounts import workspace_delivery as _workspace_delivery
-if getattr(_workspace_delivery,'REVISION',0)!=10 or getattr(_workspace_delivery,'PRODUCTION_CACHE_REVISION',0)!=2:_daily_importlib.reload(_workspace_delivery)
+if getattr(_workspace_delivery,'REVISION',0)!=11 or getattr(_workspace_delivery,'PRODUCTION_CACHE_REVISION',0)!=2:_daily_importlib.reload(_workspace_delivery)
 from stock_accounts import view_cache as _view_cache
 if getattr(_view_cache,'REVISION',0)!=2:_daily_importlib.reload(_view_cache)
 from stock_accounts import preload as _workspace_preload
@@ -57,7 +57,7 @@ from tables import table_controls
 # separate versioned storage reload above.
 import importlib
 from stock_accounts import lead_time as _lead_time
-if getattr(_lead_time,'REVISION',0)!=3:importlib.reload(_lead_time)
+if getattr(_lead_time,'REVISION',0)!=4:importlib.reload(_lead_time)
 import grounded_ai as _grounded_ai
 if getattr(_grounded_ai,'TABLE_CONTEXT_REVISION',0)!=1:importlib.reload(_grounded_ai)
 if getattr(_grounded_ai,'RESPONSE_STYLE_REVISION',0)!=1 or getattr(_grounded_ai,'QUERY_SCHEMA_REVISION',0)!=5:importlib.reload(_grounded_ai)
@@ -100,7 +100,7 @@ if getattr(_branding,'REVISION',0)!=5:importlib.reload(_branding)
 from stock_accounts import portal_console as _console_ui
 if getattr(_console_ui,'ADMIN_UI_REVISION',0)!=25:importlib.reload(_console_ui)
 from stock_accounts import workspace as _base_workspace
-if getattr(_base_workspace,'WORKSPACE_UI_REVISION',0)!=42:importlib.reload(_base_workspace)
+if getattr(_base_workspace,'WORKSPACE_UI_REVISION',0)!=43:importlib.reload(_base_workspace)
 # Refresh the dispatcher when an already-running process gains planning RPCs.
 if getattr(_workspace,'PLANNING_REVISION',0)!=36:
     importlib.reload(_workspace)
