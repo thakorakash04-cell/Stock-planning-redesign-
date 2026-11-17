@@ -17,6 +17,8 @@ def ui_payload(current,identity=None,overrides=()):
         dataset=model_views(current["data"])
         from .lead_time import build,purchasing,with_average
         from .bom_prices import with_prices
+        from .source_freshness import workbook_summary
+        source_file={'filename':current['filename'],'updated_at':current['updated_at'],**workbook_summary(dataset)}
         lead,averages=build(dataset)
         purchase=purchasing(dataset,averages,current,overrides)
         dataset={**dataset,'sheets':[with_prices(sheet,dataset) if i==1 else purchase if i==5 and purchase else with_average(sheet,dataset,averages) if i==6 else sheet for i,sheet in enumerate(dataset['sheets'])]}
@@ -24,7 +26,7 @@ def ui_payload(current,identity=None,overrides=()):
         if identity:
             dataset={**dataset,'sheets':[{**sheet,'rows':sheet['rows'] if allowed(identity,i) else []} for i,sheet in enumerate(dataset['sheets'])]}
         mapping=segment_map(dataset.get("tables",[]))
-        return {"accessibleTabs":[i for i in range(14) if not identity or allowed(identity,i)],"filename":current["filename"],"updatedAt":datetime.fromtimestamp(current["updated_at"],tz=timezone.utc).isoformat(),"planningRevision":str([(r["id"],r["revision"],r["updated_at"]) for r in overrides if r["kind"]=="ongoing" ]),"leadTime":lead,"asOf":"Saved Excel results","sheets":dataset["sheets"],"segmentMap":{k:sorted(v) for k,v in mapping.items()}},dataset.get("tables",[]),current["version"]
+        return {"sourceFile":source_file,"accessibleTabs":[i for i in range(14) if not identity or allowed(identity,i)],"filename":current["filename"],"updatedAt":datetime.fromtimestamp(current["updated_at"],tz=timezone.utc).isoformat(),"planningRevision":str([(r["id"],r["revision"],r["updated_at"]) for r in overrides if r["kind"]=="ongoing" ]),"leadTime":lead,"asOf":"Saved Excel results","sheets":dataset["sheets"],"segmentMap":{k:sorted(v) for k,v in mapping.items()}},dataset.get("tables",[]),current["version"]
     return {"accessibleTabs":[i for i in range(14) if not identity or allowed(identity,i)],"filename":"No workbook uploaded yet","updatedAt":None,"asOf":"—","sheets":[{"name":s[0],"headers":["Material","Description"],"rows":[]} for s in SPECS],"segmentMap":{}},[],"empty"
 
 def workspace_payload(store,actor,*,cached_only=False):
@@ -41,7 +43,7 @@ def workspace_payload(store,actor,*,cached_only=False):
         cached=st.session_state.get('_workspace_payload')
         # Only successful, already version-validated Insight interactions use
         # this branch. Access, session and workbook metadata are still checked.
-        if cached and len(cached[0])==9 and cached[0][:4]==(actor.username,actor.session_id,revision,str(identity['permissions'])) and cached[0][4]==28 and cached[0][7]==str(identity.get('allowedSegments')):
+        if cached and len(cached[0])==9 and cached[0][:4]==(actor.username,actor.session_id,revision,str(identity['permissions'])) and cached[0][4]==29 and cached[0][7]==str(identity.get('allowedSegments')):
             payload,tables,version=cached[1]
             return decorate_workspace(store,actor,payload,identity=identity),tables,version
     from .production import shared
@@ -53,7 +55,7 @@ def workspace_payload(store,actor,*,cached_only=False):
     from .access import allowed
     from .availability_cache import revision as availability_revision
     availability_key=availability_revision(store,actor,revision,identity) if allowed(identity,3) else ''
-    key=(actor.username,actor.session_id,revision,str(identity['permissions']),28,supply_revision,production_revision,str(identity.get('allowedSegments')),availability_key)
+    key=(actor.username,actor.session_id,revision,str(identity['permissions']),29,supply_revision,production_revision,str(identity.get('allowedSegments')),availability_key)
     cached=st.session_state.get('_workspace_payload')
     if not cached or cached[0]!=key:
         retained_key=(DELIVERY_REVISION,access_scope({**identity,'username':actor.username}),revision,supply_revision,production_revision,availability_key)
@@ -302,7 +304,7 @@ def render_exact_workspace(store,actor,identity):
     _component(preferences=preferences,preload=initial,**delivery,version=version,user=identity["username"],role=identity["role"],permissions=identity["permissions"],response=st.session_state.get("_ui_response"),default=None,key="exact_website_ui")
 
 
-WORKSPACE_UI_REVISION=44
+WORKSPACE_UI_REVISION=45
 
 
 

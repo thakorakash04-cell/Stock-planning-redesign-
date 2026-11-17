@@ -4,7 +4,7 @@ from collections import OrderedDict
 from datetime import date,datetime
 from .store import AccessDenied
 from .pnl_import import open_saved,norm,segment,code
-REVISION=9
+REVISION=10
 KINDS=('primary','secondary')
 _lock=threading.RLock()
 
@@ -92,7 +92,9 @@ def metadata(store,actor):
     authorize(store,actor);schema(store)
     with store.transaction() as db:
         store.require(db,actor)
-        return [dict(r) for r in store.run(db,'SELECT kind,filename,version,updated_at,updated_by,metadata FROM stock_sales_documents ORDER BY kind').fetchall()]
+        rows=[dict(r) for r in store.run(db,'SELECT kind,filename,version,updated_at,updated_by,metadata FROM stock_sales_documents ORDER BY kind').fetchall()]
+    from .source_freshness import uploaded
+    return [uploaded(store,actor,'sales:'+r['kind'],r) for r in rows]
 
 def all_segments(store,actor):
     authorize(store,actor,True)
@@ -198,7 +200,7 @@ def read(store,actor,event):
         store.require(db,actor)
         master=store.run(db,"SELECT version FROM datasets WHERE id='current'").fetchone()
     bom_version=master['version'] if master else None
-    version=hashlib.sha256(json.dumps([REVISION,k,meta['version'],scope,identity['role']=='admin',bom_version]).encode()).hexdigest()
+    version=hashlib.sha256(json.dumps([REVISION,k,meta['version'],meta['updated_at'],meta['filename'],scope,identity['role']=='admin',bom_version]).encode()).hexdigest()
     common={'available':True,'kind':k,'version':version,'source':meta,'admin':identity['role']=='admin','bomVersion':bom_version}
     if identity['role']=='admin':common['uploadInfo']=info
     if event.get('knownVersion')==version:
@@ -247,6 +249,9 @@ def read(store,actor,event):
         current_sales=store.run(db,'SELECT version FROM stock_sales_documents WHERE kind=?',(k,)).fetchone()
     if live['role']!=identity['role'] or live.get('allowedSegments')!=identity.get('allowedSegments') or live['permissions']!=identity['permissions'] or (current['version'] if current else None)!=bom_version or not current_sales or current_sales['version']!=meta['version']:
         raise ValueError('Sales, BOM or access changed. Reload Sales.')
+    from .source_freshness import cached,table_summary
+    source_dates=cached(store,actor,'sales-view:'+k,version,lambda:table_summary({'headers':value['headers'],'rows':rows}))
+    common={**common,'source':{**common['source'],**source_dates}}
     return {**common,'headers':value['headers']+[header],'rows':enriched,'segmentIndex':si,'segments':sorted({r[si] for r in rows}),'bomSegmentColumn':header}
 
 def handle(store,actor,event):

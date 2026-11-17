@@ -1,6 +1,6 @@
 from __future__ import annotations
 import stock_accounts.pending_sales as _pending_sales
-if getattr(_pending_sales,'REVISION',0)!=3:
+if getattr(_pending_sales,'REVISION',0)!=5:
     import importlib as _pending_importlib
     _pending_sales=_pending_importlib.reload(_pending_sales)
 import notification_format as _notification_format
@@ -18,17 +18,17 @@ if getattr(_product_catalog,'REVISION',0)!=6:_daily_importlib.reload(_product_ca
 from stock_accounts import segment_access as _segment_access
 if getattr(_segment_access,'REVISION',0)!=2:_daily_importlib.reload(_segment_access)
 from stock_accounts import workspace_delivery as _workspace_delivery
-if getattr(_workspace_delivery,'REVISION',0)!=11 or getattr(_workspace_delivery,'PRODUCTION_CACHE_REVISION',0)!=2:_daily_importlib.reload(_workspace_delivery)
+if getattr(_workspace_delivery,'REVISION',0)!=12 or getattr(_workspace_delivery,'PRODUCTION_CACHE_REVISION',0)!=2:_daily_importlib.reload(_workspace_delivery)
 from stock_accounts import view_cache as _view_cache
 if getattr(_view_cache,'REVISION',0)!=2:_daily_importlib.reload(_view_cache)
 from stock_accounts import preload as _workspace_preload
-if getattr(_workspace_preload,'REVISION',0)!=8:_daily_importlib.reload(_workspace_preload)
+if getattr(_workspace_preload,'REVISION',0)!=9:_daily_importlib.reload(_workspace_preload)
 from stock_accounts import sales as _sales
-if getattr(_sales,'REVISION',0)!=9:_daily_importlib.reload(_sales)
+if getattr(_sales,'REVISION',0)!=10:_daily_importlib.reload(_sales)
 from stock_accounts import pnl_import as _pnl_import
 if getattr(_pnl_import,'REVISION',0)!=3:_daily_importlib.reload(_pnl_import)
 from stock_accounts import pnl as _pnl
-if getattr(_pnl,'REVISION',0)!=9:_daily_importlib.reload(_pnl)
+if getattr(_pnl,'REVISION',0)!=10:_daily_importlib.reload(_pnl)
 from stock_accounts import scheduled_delivery as _daily_schedule
 if getattr(_daily_schedule,'ACTIVITY_REVISION',0)!=8:_daily_importlib.reload(_daily_schedule)
 from stock_accounts import portal_alerts as _email_alerts, mail_transport as _email_transport
@@ -76,7 +76,7 @@ import stock_accounts.table_columns as _table_columns
 if getattr(_table_columns,'REVISION',0)!=9:importlib.reload(_table_columns)
 from stock_accounts import insights as _insights, assistant_insights as _assistant, workspace_insights as _workspace
 for _module in (_grounded_ai,_insights,_assistant,_workspace):
-    if getattr(_module,'INSIGHTS_REVISION',0)!=(56 if _module is _workspace else 21 if _module is _assistant else 7 if _module is _insights else 4):
+    if getattr(_module,'INSIGHTS_REVISION',0)!=(57 if _module is _workspace else 21 if _module is _assistant else 7 if _module is _insights else 4):
         importlib.reload(_module)
 if getattr(_insights,'ATTENTION_REVISION',0)!=1:importlib.reload(_insights)
 from stock_accounts import insight_refresh as _insight_refresh
@@ -100,9 +100,9 @@ if getattr(_branding,'REVISION',0)!=5:importlib.reload(_branding)
 from stock_accounts import portal_console as _console_ui
 if getattr(_console_ui,'ADMIN_UI_REVISION',0)!=25:importlib.reload(_console_ui)
 from stock_accounts import meril_stock as _meril_stock
-if getattr(_meril_stock,'REVISION',0)!=2:importlib.reload(_meril_stock)
+if getattr(_meril_stock,'REVISION',0)!=3:importlib.reload(_meril_stock)
 from stock_accounts import workspace as _base_workspace
-if getattr(_base_workspace,'WORKSPACE_UI_REVISION',0)!=44:importlib.reload(_base_workspace)
+if getattr(_base_workspace,'WORKSPACE_UI_REVISION',0)!=45:importlib.reload(_base_workspace)
 # Refresh the dispatcher when an already-running process gains planning RPCs.
 if getattr(_workspace,'PLANNING_REVISION',0)!=36:
     importlib.reload(_workspace)

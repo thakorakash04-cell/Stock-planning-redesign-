@@ -6,7 +6,7 @@ import math
 from .sales import material_key,read
 from .pnl_import import norm
 
-REVISION=2
+REVISION=3
 HEADERS=['Expected Meril India Stock','Last uploaded Secondary sales data']
 
 def quantities(report):
@@ -44,7 +44,7 @@ def enrich(store,actor,payload,identity):
  reports=({}, {})
  if allowed(identity,11):reports=tuple(read(store,actor,{'kind':kind}) for kind in ('primary','secondary'))
  sheet=apply(payload['sheets'][0],*reports,payload.get('segmentMap',{}))
- return {**payload,'sheets':[sheet,*payload['sheets'][1:]]}
+ return {**payload,'salesSourceFiles':[{**report['source'],'label':label} for label,report in zip(('Primary Sales','Secondary Sales'),reports) if report.get('source')],'sheets':[sheet,*payload['sheets'][1:]]}
 
 
 def matching(report,material):
