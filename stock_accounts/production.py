@@ -7,7 +7,7 @@ from .store import AccessDenied
 from .clock import IST,display as timestamp
 from .production_history import record as history_record
 
-REVISION=15
+REVISION=16
 TRANSFER_CACHE_REVISION=1
 QC_HEADERS=['Material Code','Description','Batch','Order Quantity','Confirmed Quantity','Latest 101 Date','Order Number','Material Type']
 ONGOING_HEADERS=['Order Number','Material Type','Material Code','Description','Batch','Order Quantity','Basic Start Date','Expected End Date','Expected FG Quantity','Estimate Basis','Last Saved By','Last Saved At (IST)']
@@ -154,6 +154,7 @@ def read(store,actor,*,archive=True,current=None,saved=None):
         item['segments']=[chosen] if chosen else sorted(inferred)
         item['row'].append(', '.join(item['segments']) or 'Unassigned')
         item['demandReason']=payload.get('demandReason','')
+        item['demandProvenance']=payload.get('demandProvenance')
     matched=[item for item in result['upcoming'] if item.get('materialCode') and (ident(item['materialCode']).casefold(),ident(item['row'][2]).casefold()) in production_pairs]
     if matched and archive:
         # Archive automatically once an order exists; retain history and avoid
@@ -217,6 +218,9 @@ def save(store,actor,event):
         payload['segment']=chosen
         if 'demandReason' in value:payload['demandReason']=text('demandReason',False)
         payload.update(quantity=qty,startDate=start.isoformat(),endDate=end.isoformat())
+        if expected==0 and demand_stamp is not None and ('demandMaterial' in value or 'demandUnit' in value):
+            from .demand_provenance import capture
+            payload['demandProvenance']=capture(store,actor,current,value)
         if key in (None,'') and expected==0:key=uuid.uuid4().hex
         if not isinstance(key,str) or not re.fullmatch('[a-f0-9]{32}',key):raise ValueError('Invalid plan ID.')
     if kind=='upcoming' and expected>0 and key not in {r['id'] for r in shared(store,actor) if r['kind']=='upcoming'}:raise AccessDenied('This plan is outside your assigned segments.')
@@ -229,6 +233,11 @@ def save(store,actor,event):
         old=store.run(db,'SELECT payload FROM production_shared WHERE kind=? AND id=?',(kind,key)).fetchone()
         before=json.loads(old['payload']) if old else {'quantity':item['row'][8],'endDate':item['row'][7]} if kind=='ongoing' else {}
         if kind=='upcoming' and 'demandReason' not in payload:payload['demandReason']=before.get('demandReason','')
+        if kind=='upcoming':
+            if expected>0 and before.get('demandProvenance'):payload['demandProvenance']=before['demandProvenance']
+            elif expected==0 and payload.get('demandProvenance'):
+                from .demand_provenance import validate_sources
+                validate_sources(store,db,payload['demandProvenance'])
         now=time.time()
         if expected==0:
             cursor=store.run(db,'INSERT INTO production_shared(kind,id,payload,revision,updated_by,updated_at) VALUES(?,?,?,1,?,?) ON CONFLICT(kind,id) DO NOTHING',(kind,key,json.dumps(payload),actor.username,now))

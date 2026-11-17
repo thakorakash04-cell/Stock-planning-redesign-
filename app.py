@@ -18,7 +18,7 @@ if getattr(_product_catalog,'REVISION',0)!=6:_daily_importlib.reload(_product_ca
 from stock_accounts import segment_access as _segment_access
 if getattr(_segment_access,'REVISION',0)!=2:_daily_importlib.reload(_segment_access)
 from stock_accounts import workspace_delivery as _workspace_delivery
-if getattr(_workspace_delivery,'REVISION',0)!=12 or getattr(_workspace_delivery,'PRODUCTION_CACHE_REVISION',0)!=2:_daily_importlib.reload(_workspace_delivery)
+if getattr(_workspace_delivery,'REVISION',0)!=13 or getattr(_workspace_delivery,'PRODUCTION_CACHE_REVISION',0)!=2:_daily_importlib.reload(_workspace_delivery)
 from stock_accounts import view_cache as _view_cache
 if getattr(_view_cache,'REVISION',0)!=2:_daily_importlib.reload(_view_cache)
 from stock_accounts import preload as _workspace_preload
@@ -102,7 +102,7 @@ if getattr(_console_ui,'ADMIN_UI_REVISION',0)!=25:importlib.reload(_console_ui)
 from stock_accounts import meril_stock as _meril_stock
 if getattr(_meril_stock,'REVISION',0)!=3:importlib.reload(_meril_stock)
 from stock_accounts import workspace as _base_workspace
-if getattr(_base_workspace,'WORKSPACE_UI_REVISION',0)!=45:importlib.reload(_base_workspace)
+if getattr(_base_workspace,'WORKSPACE_UI_REVISION',0)!=46:importlib.reload(_base_workspace)
 # Refresh the dispatcher when an already-running process gains planning RPCs.
 if getattr(_workspace,'PLANNING_REVISION',0)!=36:
     importlib.reload(_workspace)
@@ -117,7 +117,7 @@ if getattr(_availability_cache,'REVISION',0)!=3:importlib.reload(_availability_c
 from stock_accounts import batch_availability as _batch_availability
 if getattr(_batch_availability,'REVISION',0)!=2:importlib.reload(_batch_availability)
 from stock_accounts import production as _production
-if getattr(_production,'REVISION',0)!=15 or getattr(_production,'TRANSFER_CACHE_REVISION',0)!=1:importlib.reload(_production)
+if getattr(_production,'REVISION',0)!=16 or getattr(_production,'TRANSFER_CACHE_REVISION',0)!=1:importlib.reload(_production)
 from stock_accounts.workspace_insights import render_exact_workspace,process_account_navigation,account_page_style
 from stock_accounts import auth as _account_auth
 if getattr(_account_auth,'BROWSER_SESSION_REVISION',0)!=2:importlib.reload(_account_auth)
