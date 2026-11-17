@@ -50,6 +50,9 @@ def _handle_request(store,actor,event):
     """Never trust frontend visibility or a client-supplied role."""
     identity=store.identity(actor)
     action=event.get("action")
+    if action=="meril_stock_records":
+        from .meril_stock import records
+        return records(store,actor,event)
     if action in ('table_column_plan','table_columns_resolve','table_column_records'):
         from .table_columns import handle
         return handle(store,actor,event)
@@ -261,7 +264,7 @@ def _render_exact_workspace(store,actor,identity):
         startup_meter.empty()
 
 # Increment with analysis protocol changes to invalidate hot-deployment helpers.
-INSIGHTS_REVISION=55
+INSIGHTS_REVISION=56
 
 PLANNING_REVISION=36
 

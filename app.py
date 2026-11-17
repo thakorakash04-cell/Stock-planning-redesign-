@@ -76,7 +76,7 @@ import stock_accounts.table_columns as _table_columns
 if getattr(_table_columns,'REVISION',0)!=9:importlib.reload(_table_columns)
 from stock_accounts import insights as _insights, assistant_insights as _assistant, workspace_insights as _workspace
 for _module in (_grounded_ai,_insights,_assistant,_workspace):
-    if getattr(_module,'INSIGHTS_REVISION',0)!=(55 if _module is _workspace else 21 if _module is _assistant else 7 if _module is _insights else 4):
+    if getattr(_module,'INSIGHTS_REVISION',0)!=(56 if _module is _workspace else 21 if _module is _assistant else 7 if _module is _insights else 4):
         importlib.reload(_module)
 if getattr(_insights,'ATTENTION_REVISION',0)!=1:importlib.reload(_insights)
 from stock_accounts import insight_refresh as _insight_refresh
@@ -99,8 +99,10 @@ from stock_accounts import branding as _branding
 if getattr(_branding,'REVISION',0)!=5:importlib.reload(_branding)
 from stock_accounts import portal_console as _console_ui
 if getattr(_console_ui,'ADMIN_UI_REVISION',0)!=25:importlib.reload(_console_ui)
+from stock_accounts import meril_stock as _meril_stock
+if getattr(_meril_stock,'REVISION',0)!=2:importlib.reload(_meril_stock)
 from stock_accounts import workspace as _base_workspace
-if getattr(_base_workspace,'WORKSPACE_UI_REVISION',0)!=43:importlib.reload(_base_workspace)
+if getattr(_base_workspace,'WORKSPACE_UI_REVISION',0)!=44:importlib.reload(_base_workspace)
 # Refresh the dispatcher when an already-running process gains planning RPCs.
 if getattr(_workspace,'PLANNING_REVISION',0)!=36:
     importlib.reload(_workspace)
